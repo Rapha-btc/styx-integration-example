@@ -29,7 +29,9 @@ export type ConfirmationData = {
 };
 
 const BitcoinDeposit = () => {
-  const { userAddress, btcAddress, activeWalletProvider } = useUserSession();
+  const { userAddress } = useUserSession();
+  // We're still extracting these values even if not directly using them in this component
+  // because they are required by the child components that receive them as props
   const [activeTab, setActiveTab] = useState(0);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationData, setConfirmationData] =
@@ -108,7 +110,7 @@ const BitcoinDeposit = () => {
         <TabPanels>
           <TabPanel>
             <DepositForm
-              btcUsdPrice={btcUsdPrice}
+              btcUsdPrice={btcUsdPrice || null}
               poolStatus={poolStatus}
               setConfirmationData={setConfirmationData}
               setShowConfirmation={setShowConfirmation}
@@ -119,7 +121,7 @@ const BitcoinDeposit = () => {
             <MyHistory
               depositHistory={depositHistory}
               isLoading={isDepositHistoryLoading}
-              btcUsdPrice={btcUsdPrice}
+              btcUsdPrice={btcUsdPrice || 100000}
             />
           </TabPanel>
 
@@ -127,7 +129,7 @@ const BitcoinDeposit = () => {
             <AllDeposits
               allDepositsHistory={allDepositsHistory}
               isLoading={isAllDepositsHistoryLoading}
-              btcUsdPrice={btcUsdPrice}
+              btcUsdPrice={btcUsdPrice || 100000}
             />
           </TabPanel>
         </TabPanels>

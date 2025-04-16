@@ -26,6 +26,13 @@ import { useUserSession } from "../../context/UserSessionContext";
 import { request as xverseRequest } from "sats-connect";
 import { ConfirmationData } from "./index";
 
+// Add this to fix the window.LeatherProvider type error
+declare global {
+  interface Window {
+    LeatherProvider: any;
+  }
+}
+
 interface TransactionConfirmationProps {
   confirmationData: ConfirmationData;
   isOpen: boolean;
@@ -121,6 +128,13 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
           throw new Error("No wallet provider detected");
         }
 
+        if (
+          activeWalletProvider === "leather" &&
+          (typeof window === "undefined" || !window.LeatherProvider)
+        ) {
+          throw new Error("Leather wallet is not installed or not accessible");
+        }
+
         console.log(
           "Window object has LeatherProvider:",
           !!window.LeatherProvider
@@ -149,6 +163,25 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
           btcAddress,
           feePriority,
           walletProvider: activeWalletProvider,
+        });
+
+        // Here, update fee estimates from the prepared transaction
+        setFeeEstimates({
+          low: {
+            rate: preparedTransaction.feeRate,
+            fee: preparedTransaction.fee,
+            time: "30 min",
+          },
+          medium: {
+            rate: preparedTransaction.feeRate,
+            fee: preparedTransaction.fee,
+            time: "~20 min",
+          },
+          high: {
+            rate: preparedTransaction.feeRate,
+            fee: preparedTransaction.fee,
+            time: "~10 min",
+          },
         });
 
         // Execute transaction with prepared data
