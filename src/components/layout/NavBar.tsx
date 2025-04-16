@@ -13,15 +13,15 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { Link, useLocation } from "react-router-dom";
-import logo from "../assets/Fak.png";
+import logo from "../../assets/Fak.png";
 import ConnectWallet from "../../stxConnect/ConnectWallet";
 
 import TokenSvg from "../../utils/TokenSvg";
 import { useUserSession } from "../../context/UserSessionContext";
 
 // Import wallet icons
-import leatherIcon from "../assets/Leather.jpg";
-import xverseIcon from "../assets/xverse.png";
+import leatherIcon from "../../assets/Leather.jpg";
+import xverseIcon from "../../assets/xverse.png";
 
 interface ChainButtonProps {
   isActive: boolean;
