@@ -48,16 +48,16 @@ const DesktopLayout = () => {
         <NavBar />
       </Box>
 
-      <Box
+      <Flex
         flexGrow={1}
-        display="flex"
-        flexDirection="column"
+        width="100%"
+        justifyContent="center"
         padding={isMarketDetailPage ? 0 : 2}
         paddingTop={isMarketDetailPage ? "50px" : "60px"}
         marginBottom={!isMarketDetailPage ? `${footerHeight}px` : "0"}
       >
         <Outlet />
-      </Box>
+      </Flex>
 
       {!isMarketDetailPage && (
         <Box
