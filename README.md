@@ -216,9 +216,9 @@ MIT
 
 ## Links
 
-- [Styx Protocol Documentation](https://docs.styx.network)
 - [Styx SDK on NPM](https://www.npmjs.com/package/@faktoryfun/styx-sdk)
-- [Faktoryfun Github](https://github.com/faktoryfun)
+- [Faktoryfun AI DAOs](https://www.fak.fun/)
+- [Deposit demo app Live](https://www.fak.fun/deposit)
 
 ---
 
