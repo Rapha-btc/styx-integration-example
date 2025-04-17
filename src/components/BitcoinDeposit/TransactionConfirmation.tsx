@@ -235,22 +235,22 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
 
         // Update fee estimates with actual values from prepared transaction
         // This step is important to show the actual fees that will be used
-        if (preparedTransaction.fee > 0) {
-          setFeeEstimates((prevEstimates) => ({
-            low: {
-              ...prevEstimates.low,
-              fee: preparedTransaction.fee,
-            },
-            medium: {
-              ...prevEstimates.medium,
-              fee: preparedTransaction.fee,
-            },
-            high: {
-              ...prevEstimates.high,
-              fee: preparedTransaction.fee,
-            },
-          }));
-        }
+        // if (preparedTransaction.fee > 0) {
+        //   setFeeEstimates((prevEstimates) => ({
+        //     low: {
+        //       ...prevEstimates.low,
+        //       fee: preparedTransaction.fee,
+        //     },
+        //     medium: {
+        //       ...prevEstimates.medium,
+        //       fee: preparedTransaction.fee,
+        //     },
+        //     high: {
+        //       ...prevEstimates.high,
+        //       fee: preparedTransaction.fee,
+        //     },
+        //   }));
+        // }
 
         // Execute transaction with prepared data
         console.log("Creating transaction with SDK...");
@@ -588,7 +588,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
             status: "canceled",
           },
         });
-
+        onClose();
         toast({
           title: "Error",
           description:
@@ -603,7 +603,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
       const error = err as Error;
       console.error("Error creating deposit record:", error);
       setBtcTxStatus("error");
-
+      onClose();
       toast({
         title: "Error",
         description: "Failed to initiate deposit. Please try again.",
