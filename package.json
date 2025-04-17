@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview"
@@ -14,7 +15,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.13.0",
     "@faktoryfun/core-sdk": "^0.2.23",
-    "@faktoryfun/styx-sdk": "^1.0.6",
+    "@faktoryfun/styx-sdk": "^1.0.7",
     "@giphy/js-fetch-api": "^5.6.0",
     "@giphy/react-components": "^9.8.0",
     "@headlessui/react": "^2.2.0",
@@ -33,7 +34,7 @@
     "@walletconnect/qrcode-modal": "^1.8.0",
     "@walletconnect/sign-client": "^2.14.0",
     "@walletconnect/types": "^2.15.0",
-    "axios": "^1.7.3",
+    "axios": "^1.8.4",
     "browser-image-compression": "^2.0.2",
     "buffer": "^6.0.3",
     "canvas-confetti": "^1.9.3",
@@ -66,7 +67,11 @@
     "@types/react": "^18.0.27",
     "@types/react-dom": "^18.0.10",
     "@vitejs/plugin-react": "^4.2.0",
+    "npm-force-resolutions": "^0.0.10",
     "typescript": "^5.6.2",
     "vite": "^6.2.6"
+  },
+  "resolutions": {
+    "axios": "1.8.4"
   }
 }

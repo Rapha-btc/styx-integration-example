@@ -150,6 +150,7 @@ const DepositForm: React.FC<DepositFormProps> = ({
 
       const amountInSats = Math.round(parseFloat(amount) * 100000000);
 
+      console.log(MIN_DEPOSIT_SATS, MAX_DEPOSIT_SATS);
       if (amountInSats < MIN_DEPOSIT_SATS) {
         toast({
           title: "Minimum deposit required",
