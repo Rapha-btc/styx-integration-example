@@ -215,7 +215,7 @@ MIT
 ## Links
 
 - [Styx SDK on NPM](https://www.npmjs.com/package/@faktoryfun/styx-sdk)
-- [Faktoryfun Live Demo]([https://github.com/faktoryfun](https://www.fak.fun/deposit))
+- [Faktoryfun Live Demo](https://www.fak.fun/deposit)
 
 ---
 
