@@ -352,7 +352,6 @@ const DepositForm: React.FC<DepositFormProps> = ({
           </Button>
         </HStack>
       </Box>
-
       {/* Fee Information Box */}
       <Box
         bg="#242731"
@@ -396,7 +395,6 @@ const DepositForm: React.FC<DepositFormProps> = ({
           </Flex>
         )}
       </Box>
-
       {/* Accordion with Additional Info */}
       <Box mt={0}>
         <Accordion allowToggle>
@@ -430,27 +428,81 @@ const DepositForm: React.FC<DepositFormProps> = ({
           </AccordionItem>
         </Accordion>
       </Box>
-
+      // Replace the Action Button section in BitcoinDeposit.tsx with this:
       {/* Action Button */}
       <Button
         colorScheme="teal"
         size="lg"
         height="60px"
         fontSize="xl"
-        onClick={
-          isSignedIn
-            ? handleDepositConfirm
-            : () => {
-                authenticate();
-              }
-        }
+        onClick={async () => {
+          if (!isSignedIn) {
+            // Not signed in, authenticate normally
+            authenticate();
+          } else if (!btcAddress && activeWalletProvider === "leather") {
+            // Edge case: Stacks is connected but BTC address missing (likely Leather+Ledger)
+            try {
+              // Show a loading state
+              toast({
+                title: "Connecting Bitcoin",
+                description:
+                  "Please approve the request in your Leather wallet...",
+                status: "info",
+                duration: 5000,
+                isClosable: true,
+              });
+
+              // Import from auth.js
+              const { requestLeatherBtcAddress } = await import(
+                "../../stxConnect/auth"
+              );
+              const btcAddr = await requestLeatherBtcAddress();
+
+              // Update the local state immediately for better UX
+              // The full context will update on the next refresh cycle
+              toast({
+                title: "Bitcoin Connected",
+                description: `Successfully connected to ${btcAddr.substring(
+                  0,
+                  10
+                )}...`,
+                status: "success",
+                duration: 5000,
+                isClosable: true,
+              });
+
+              // Force reload to update the context properly
+              window.location.reload();
+            } catch (error) {
+              console.error("Error connecting Bitcoin:", error);
+              toast({
+                title: "Connection Error",
+                description:
+                  "Could not connect to Bitcoin wallet. Please try again.",
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+              });
+            }
+          } else if (!btcAddress) {
+            // No BTC address but not using Leather - just show normal authentication
+            authenticate();
+          } else {
+            // Everything connected, proceed with deposit
+            handleDepositConfirm();
+          }
+        }}
         bg="#2FCCB0"
         color="black"
         _hover={{ bg: "#2AB79F" }}
         _active={{ bg: "#249E8B" }}
         boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
       >
-        {isSignedIn ? "Confirm Deposit" : "Connect Wallet"}
+        {!isSignedIn
+          ? "Connect Wallet"
+          : !btcAddress
+          ? "Connect Bitcoin" // Show different text when only Stacks is connected
+          : "Confirm Deposit"}
       </Button>
     </VStack>
   );
