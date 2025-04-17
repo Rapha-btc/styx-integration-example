@@ -183,9 +183,11 @@ The example demonstrates how to use the SDK to handle the complete Bitcoin trans
    - Xverse wallet integration through `sats-connect`
    - Handling different address types (P2SH, SegWit)
 
-3. **Transaction Execution**: Using `styxSDK.executeTransaction` for:
-   - Broadcasting transactions to the Bitcoin network
-   - Handling transaction responses
+3. **Transaction Execution and Broadcasting**: 
+   - Using `styxSDK.executeTransaction` to prepare the final transaction data
+   - Implementing wallet-specific broadcasting:
+     - Leather: Manual broadcasting via Mempool API after signing
+     - Xverse: Using the wallet's built-in broadcasting functionality
 
 4. **Status Management**: Properly updating deposit status with:
    - `styxSDK.updateDepositStatus({ status: "broadcast" })` for successful broadcasts
