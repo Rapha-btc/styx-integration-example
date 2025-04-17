@@ -1,5 +1,5 @@
 // components/BitcoinDeposit/TransactionConfirmation.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -18,6 +18,7 @@ import {
   SimpleGrid,
   Card,
   useToast,
+  Spinner,
 } from "@chakra-ui/react";
 import { hex } from "@scure/base";
 import * as btc from "@scure/btc-signer";
@@ -53,6 +54,18 @@ interface XverseSignPsbtResponse {
   };
 }
 
+interface FeeEstimate {
+  rate: number;
+  fee: number;
+  time: string;
+}
+
+interface FeeEstimates {
+  low: FeeEstimate;
+  medium: FeeEstimate;
+  high: FeeEstimate;
+}
+
 const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
   confirmationData,
   isOpen,
@@ -67,15 +80,73 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
   const [btcTxId, setBtcTxId] = useState<string>("");
   const [currentDepositId, setCurrentDepositId] = useState<string | null>(null);
   const toast = useToast();
+  const [loadingFees, setLoadingFees] = useState(true);
 
-  const [feeEstimates, setFeeEstimates] = useState({
-    low: { rate: 1, fee: 0, time: "30 min" },
-    medium: { rate: 3, fee: 0, time: "~20 min" },
+  // Initialize with different rates but 0 fees
+  const [feeEstimates, setFeeEstimates] = useState<FeeEstimates>({
+    low: { rate: 1, fee: 0, time: "~30 min" },
+    medium: { rate: 2, fee: 0, time: "~20 min" },
     high: { rate: 5, fee: 0, time: "~10 min" },
   });
 
+  // Calculate fee estimate for a given transaction size (in vBytes)
+  const calculateFeeEstimate = (rate: number, txSize: number = 148): number => {
+    return Math.round(txSize * rate);
+  };
+
+  // Fetch fee rates as soon as the modal opens
+  useEffect(() => {
+    const fetchFeeEstimates = async () => {
+      if (isOpen) {
+        setLoadingFees(true);
+        try {
+          // Get fee rate estimates from SDK or API
+          const feeRates = await styxSDK.getFeeEstimates();
+
+          // Ensure proper separation between tiers
+          const lowRate = feeRates.low || 1;
+          const mediumRate = Math.max(lowRate + 1, feeRates.medium || 2);
+          const highRate = Math.max(mediumRate + 1, feeRates.high || 5);
+
+          // Calculate fees for a standard transaction (~148 vBytes)
+          const txSize = 148;
+
+          setFeeEstimates({
+            low: {
+              rate: lowRate,
+              fee: calculateFeeEstimate(lowRate, txSize),
+              time: "~30 min",
+            },
+            medium: {
+              rate: mediumRate,
+              fee: calculateFeeEstimate(mediumRate, txSize),
+              time: "~20 min",
+            },
+            high: {
+              rate: highRate,
+              fee: calculateFeeEstimate(highRate, txSize),
+              time: "~10 min",
+            },
+          });
+        } catch (error) {
+          console.error("Error fetching fee estimates:", error);
+          // Fallback to default estimates with proper separation
+          setFeeEstimates({
+            low: { rate: 1, fee: 148, time: "~30 min" },
+            medium: { rate: 2, fee: 296, time: "~20 min" },
+            high: { rate: 5, fee: 740, time: "~10 min" },
+          });
+        } finally {
+          setLoadingFees(false);
+        }
+      }
+    };
+
+    fetchFeeEstimates();
+  }, [isOpen]);
+
   const isP2SHAddress = (address: string): boolean => {
-    return address.startsWith("3");
+    return address?.startsWith("3") || false;
   };
 
   const executeBitcoinTransaction = async (): Promise<void> => {
@@ -84,8 +155,8 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
       activeWalletProvider
     );
 
-    const feeRates = await styxSDK.getFeeEstimates();
-    const selectedFeeRate = feeRates[feePriority];
+    // Use the rate from our fee estimates based on selected priority
+    const selectedFeeRate = feeEstimates[feePriority].rate;
     console.log(
       `Using ${feePriority} priority fee rate: ${selectedFeeRate} sat/vB`
     );
@@ -139,13 +210,10 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
           "Window object has LeatherProvider:",
           !!window.LeatherProvider
         );
-        console.log("Full window object keys:", Object.keys(window));
 
         if (!userAddress) {
           throw new Error("STX address is missing or invalid");
         }
-
-        console.log("About to use LeatherProvider:", window.LeatherProvider);
 
         // Use the BTC address from context
         if (!btcAddress) {
@@ -165,24 +233,24 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
           walletProvider: activeWalletProvider,
         });
 
-        // Here, update fee estimates from the prepared transaction
-        setFeeEstimates({
-          low: {
-            rate: preparedTransaction.feeRate,
-            fee: preparedTransaction.fee,
-            time: "30 min",
-          },
-          medium: {
-            rate: preparedTransaction.feeRate,
-            fee: preparedTransaction.fee,
-            time: "~20 min",
-          },
-          high: {
-            rate: preparedTransaction.feeRate,
-            fee: preparedTransaction.fee,
-            time: "~10 min",
-          },
-        });
+        // Update fee estimates with actual values from prepared transaction
+        // This step is important to show the actual fees that will be used
+        if (preparedTransaction.fee > 0) {
+          setFeeEstimates((prevEstimates) => ({
+            low: {
+              ...prevEstimates.low,
+              fee: preparedTransaction.fee,
+            },
+            medium: {
+              ...prevEstimates.medium,
+              fee: preparedTransaction.fee,
+            },
+            high: {
+              ...prevEstimates.high,
+              fee: preparedTransaction.fee,
+            },
+          }));
+        }
 
         // Execute transaction with prepared data
         console.log("Creating transaction with SDK...");
@@ -389,7 +457,6 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
           txid = await broadcastResponse.text();
         } else if (activeWalletProvider === "xverse") {
           console.log("Executing Xverse transaction flow");
-          console.log("xverseRequest function type:", typeof xverseRequest);
           // Xverse wallet flow
           try {
             console.log("Starting Xverse PSBT signing flow...");
@@ -402,10 +469,6 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
             );
 
             console.log("Input addresses for Xverse:", inputAddresses);
-            console.log(
-              "PSBT Base64 (first 100 chars):",
-              finalTxPsbtBase64.substring(0, 100) + "..."
-            );
 
             // Prepare request params
             const xverseParams = {
@@ -417,7 +480,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
                 btc.SigHash.NONE,
                 btc.SigHash.SINGLE,
                 btc.SigHash.DEFAULT_ANYONECANPAY,
-              ], // More complete set of sighash options
+              ],
               options: {
                 allowUnknownInputs: true,
                 allowUnknownOutputs: true,
@@ -432,20 +495,10 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
               );
             }
 
-            console.log(
-              "Calling Xverse request with params:",
-              JSON.stringify(xverseParams, null, 2)
-            );
-
             const response = (await xverseRequest(
               "signPsbt",
               xverseParams
             )) as XverseSignPsbtResponse;
-
-            console.log(
-              "Full Xverse response:",
-              JSON.stringify(response, null, 2)
-            );
 
             if (response.status !== "success") {
               console.error(
@@ -485,25 +538,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
         console.log("Transaction successfully broadcast with txid:", txid);
 
         // Update the deposit record with the transaction ID
-        console.log(
-          "Attempting to update deposit with ID:",
-          depositId,
-          "Type:",
-          typeof depositId
-        );
-
         try {
-          console.log(
-            "About to update deposit with ID:",
-            depositId,
-            "and txid:",
-            txid
-          );
-          console.log("Update data:", {
-            id: depositId,
-            data: { btcTxId: txid, status: "broadcast" },
-          });
-
           const updateResult = await styxSDK.updateDepositStatus({
             id: depositId,
             data: {
@@ -512,10 +547,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
             },
           });
 
-          console.log(
-            "Successfully updated deposit:",
-            JSON.stringify(updateResult, null, 2)
-          );
+          console.log("Successfully updated deposit:", updateResult);
         } catch (error) {
           console.error("Error updating deposit with ID:", depositId);
           console.error("Update error details:", error);
@@ -580,6 +612,97 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
         isClosable: true,
       });
     }
+  };
+
+  // Render fee estimates with appropriate visual cues for loading state
+  const renderFeeEstimates = () => {
+    return (
+      <SimpleGrid columns={3} spacing={3}>
+        <Card
+          bg={feePriority === "low" ? "#665500" : "#1A1A2F"}
+          borderRadius="lg"
+          overflow="hidden"
+          border="1px solid rgba(255, 255, 255, 0.1)"
+          _hover={{ borderColor: "yellow.300", cursor: "pointer" }}
+          onClick={() => setFeePriority(TransactionPriority.Low)}
+        >
+          <Box p={3} textAlign="center">
+            <Text color="white" fontSize="sm" fontWeight="medium" mb={1}>
+              Low
+            </Text>
+            <Text color="gray.300" fontSize="xs">
+              {loadingFees ? (
+                <Spinner size="xs" />
+              ) : (
+                `${feeEstimates.low.fee} sats`
+              )}
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              ({feeEstimates.low.rate} sat/vB)
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              {feeEstimates.low.time}
+            </Text>
+          </Box>
+        </Card>
+
+        <Card
+          bg={feePriority === "medium" ? "#665500" : "#1A1A2F"}
+          borderRadius="lg"
+          overflow="hidden"
+          border="1px solid rgba(255, 255, 255, 0.1)"
+          _hover={{ borderColor: "yellow.300", cursor: "pointer" }}
+          onClick={() => setFeePriority(TransactionPriority.Medium)}
+        >
+          <Box p={3} textAlign="center">
+            <Text color="white" fontSize="sm" fontWeight="medium" mb={1}>
+              Medium
+            </Text>
+            <Text color="gray.300" fontSize="xs">
+              {loadingFees ? (
+                <Spinner size="xs" />
+              ) : (
+                `${feeEstimates.medium.fee} sats`
+              )}
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              ({feeEstimates.medium.rate} sat/vB)
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              {feeEstimates.medium.time}
+            </Text>
+          </Box>
+        </Card>
+
+        <Card
+          bg={feePriority === "high" ? "#665500" : "#1A1A2F"}
+          borderRadius="lg"
+          overflow="hidden"
+          border="1px solid rgba(255, 255, 255, 0.1)"
+          _hover={{ borderColor: "yellow.300", cursor: "pointer" }}
+          onClick={() => setFeePriority(TransactionPriority.High)}
+        >
+          <Box p={3} textAlign="center">
+            <Text color="white" fontSize="sm" fontWeight="medium" mb={1}>
+              High
+            </Text>
+            <Text color="gray.300" fontSize="xs">
+              {loadingFees ? (
+                <Spinner size="xs" />
+              ) : (
+                `${feeEstimates.high.fee} sats`
+              )}
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              ({feeEstimates.high.rate} sat/vB)
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              {feeEstimates.high.time}
+            </Text>
+          </Box>
+        </Card>
+      </SimpleGrid>
+    );
   };
 
   return (
@@ -692,79 +815,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
               Select priority
             </Text>
 
-            <SimpleGrid columns={3} spacing={3}>
-              <Card
-                bg={feePriority === "low" ? "#665500" : "#1A1A2F"}
-                borderRadius="lg"
-                overflow="hidden"
-                border="1px solid rgba(255, 255, 255, 0.1)"
-                _hover={{ borderColor: "yellow.300", cursor: "pointer" }}
-                onClick={() => setFeePriority(TransactionPriority.Low)}
-              >
-                <Box p={3} textAlign="center">
-                  <Text color="white" fontSize="sm" fontWeight="medium" mb={1}>
-                    Low
-                  </Text>
-                  <Text color="gray.300" fontSize="xs">
-                    {feeEstimates.low.fee} sats
-                  </Text>
-                  <Text color="gray.400" fontSize="xs">
-                    ({feeEstimates.low.rate} sat/vB)
-                  </Text>
-                  <Text color="gray.400" fontSize="xs">
-                    30 min
-                  </Text>
-                </Box>
-              </Card>
-
-              <Card
-                bg={feePriority === "medium" ? "#665500" : "#1A1A2F"}
-                borderRadius="lg"
-                overflow="hidden"
-                border="1px solid rgba(255, 255, 255, 0.1)"
-                _hover={{ borderColor: "yellow.300", cursor: "pointer" }}
-                onClick={() => setFeePriority(TransactionPriority.Medium)}
-              >
-                <Box p={3} textAlign="center">
-                  <Text color="white" fontSize="sm" fontWeight="medium" mb={1}>
-                    Medium
-                  </Text>
-                  <Text color="gray.300" fontSize="xs">
-                    {feeEstimates.medium.fee} sats
-                  </Text>
-                  <Text color="gray.400" fontSize="xs">
-                    ({feeEstimates.medium.rate} sat/vB)
-                  </Text>
-                  <Text color="gray.400" fontSize="xs">
-                    ~20 min
-                  </Text>
-                </Box>
-              </Card>
-
-              <Card
-                bg={feePriority === "high" ? "#665500" : "#1A1A2F"}
-                borderRadius="lg"
-                overflow="hidden"
-                border="1px solid rgba(255, 255, 255, 0.1)"
-                _hover={{ borderColor: "yellow.300", cursor: "pointer" }}
-                onClick={() => setFeePriority(TransactionPriority.High)}
-              >
-                <Box p={3} textAlign="center">
-                  <Text color="white" fontSize="sm" fontWeight="medium" mb={1}>
-                    High
-                  </Text>
-                  <Text color="gray.300" fontSize="xs">
-                    {feeEstimates.high.fee} sats
-                  </Text>
-                  <Text color="gray.400" fontSize="xs">
-                    ({feeEstimates.high.rate} sat/vB)
-                  </Text>
-                  <Text color="gray.400" fontSize="xs">
-                    ~10 min
-                  </Text>
-                </Box>
-              </Card>
-            </SimpleGrid>
+            {renderFeeEstimates()}
 
             <Text fontSize="xs" color="gray.300" mt={4} textAlign="left">
               Fees are estimated based on current network conditions.
@@ -775,7 +826,12 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
           <Button variant="outline" mr={3} onClick={onClose}>
             Cancel
           </Button>
-          <Button colorScheme="blue" onClick={executeBitcoinTransaction}>
+          <Button
+            colorScheme="blue"
+            onClick={executeBitcoinTransaction}
+            isLoading={btcTxStatus === "pending"}
+            loadingText="Processing"
+          >
             Proceed to Wallet
           </Button>
         </ModalFooter>
