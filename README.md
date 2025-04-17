@@ -33,7 +33,6 @@ Failing to properly update deposit status can lead to:
 
 - Liquidity accounting issues in the pool
 - Poor user experience if available sBTC amounts are reported incorrectly
-- Potential double-spending of reserved sBTC liquidity# Styx BTC <-> STX Bridge Integration Example
 
 This repository demonstrates how to integrate the @faktoryfun/styx-sdk into a web application to enable trustless Bitcoin-to-Stacks deposits. The Styx protocol allows for rapid (1 Bitcoin block) deposits of BTC and receive sBTC (Bitcoin representation on Stacks) with no trusted intermediaries.
 
