@@ -1,4 +1,4 @@
-// components/BitcoinDeposit/index.tsx
+// Updated BitcoinDeposit/index.tsx
 import { useState } from "react";
 import {
   Box,
@@ -12,6 +12,7 @@ import {
 import DepositForm from "./DepositForm";
 import MyHistory from "./MyHistory";
 import AllDeposits from "./AllDeposits";
+import StatusTracker from "./StatusTracker"; // Import the new component
 import TransactionConfirmation from "./TransactionConfirmation";
 import { useUserSession } from "../../context/UserSessionContext";
 import { useFormattedBtcPrice } from "../../hooks/useSdkBtcPrice";
@@ -30,8 +31,6 @@ export type ConfirmationData = {
 
 const BitcoinDeposit = () => {
   const { userAddress } = useUserSession();
-  // We're still extracting these values even if not directly using them in this component
-  // because they are required by the child components that receive them as props
   const [activeTab, setActiveTab] = useState(0);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationData, setConfirmationData] =
@@ -105,6 +104,19 @@ const BitcoinDeposit = () => {
           >
             All Deposits
           </Tab>
+          {/* Add new tab for Status Tracker */}
+          <Tab
+            _selected={{
+              color: "white",
+              bg: "#2D2D43",
+              borderBottomColor: "transparent",
+            }}
+            color="gray.400"
+            borderTopRadius="xl"
+            borderBottomRadius="0"
+          >
+            Track Status
+          </Tab>
         </TabList>
 
         <TabPanels>
@@ -131,6 +143,11 @@ const BitcoinDeposit = () => {
               isLoading={isAllDepositsHistoryLoading}
               btcUsdPrice={btcUsdPrice || 100000}
             />
+          </TabPanel>
+
+          {/* Add new tab panel for Status Tracker */}
+          <TabPanel>
+            <StatusTracker />
           </TabPanel>
         </TabPanels>
       </Tabs>
