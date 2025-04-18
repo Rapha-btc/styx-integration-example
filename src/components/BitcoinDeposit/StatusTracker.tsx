@@ -1,5 +1,5 @@
 // components/BitcoinDeposit/StatusTracker.tsx
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Button,
@@ -8,7 +8,6 @@ import {
   Input,
   VStack,
   Text,
-  Divider,
   Spinner,
   Alert,
   AlertIcon,
@@ -18,7 +17,9 @@ import {
   TabPanels,
   Tab,
   TabPanel,
+  Link,
 } from "@chakra-ui/react";
+import { ExternalLinkIcon } from "@chakra-ui/icons";
 import useSdkDepositStatus from "../../hooks/useSdkDepositStatus";
 import useSdkDepositStatusByTxId from "../../hooks/useSdkDepositStatusByTxId";
 
@@ -56,118 +57,217 @@ const StatusTracker = () => {
     }
   };
 
-  const StatusBadge = ({ status }: { status: string }) => {
-    let color;
+  // Get status badge color - same as in MyHistory
+  const getStatusColor = (status: string): string => {
     switch (status) {
-      case "initiated":
-        color = "yellow";
-        break;
       case "broadcast":
-        color = "orange";
-        break;
+        return "yellow";
       case "processing":
-        color = "blue";
-        break;
+        return "blue";
       case "confirmed":
-        color = "green";
-        break;
+        return "green";
       case "refund-requested":
-        color = "purple";
-        break;
+        return "purple";
       case "canceled":
-        color = "red";
-        break;
+        return "red";
       default:
-        color = "gray";
+        return "gray";
     }
-    return <Badge colorScheme={color}>{status}</Badge>;
+  };
+
+  // Get truncated tx id for display - same as in MyHistory
+  const getTruncatedTxId = (txId: string | null): string => {
+    if (!txId) return "N/A";
+    return `${txId.substring(0, 6)}...${txId.substring(txId.length - 4)}`;
+  };
+
+  // Format BTC amount for display
+  const formatBtcAmount = (amount: number | null): string => {
+    if (amount === null || amount === undefined) return "0.00000000";
+    return amount.toFixed(8);
   };
 
   const StatusDisplay = ({
-    title,
     data,
     isLoading,
     error,
     refetch,
+    idType,
   }: {
-    title: string;
     data: any;
     isLoading: boolean;
     error: any;
     refetch: () => void;
+    idType: "deposit" | "transaction";
   }) => (
     <Box p={4} bg="#2D2D43" borderRadius="md" mt={4}>
-      <Text fontWeight="bold" mb={2}>
-        {title}
+      <Text fontWeight="bold" mb={4}>
+        Status for deposit #{depositId}
       </Text>
+
       {isLoading ? (
         <Box textAlign="center" py={4}>
-          <Spinner />
-          <Text mt={2}>Loading status...</Text>
+          <Spinner color="teal.300" size="lg" />
+          <Text mt={2} color="gray.400">
+            Loading status...
+          </Text>
         </Box>
       ) : error ? (
-        <Alert status="error" borderRadius="md">
-          <AlertIcon />
-          Error: {error.message}
-        </Alert>
+        <Box>
+          <Alert
+            status="error"
+            borderRadius="md"
+            mb={3}
+            bg="#3A273A"
+            color="white"
+          >
+            <AlertIcon />
+            {error.response?.status === 404 ? (
+              <Text>
+                No deposit found with this identifier. Please check the ID and
+                try again.
+              </Text>
+            ) : (
+              <Text>Error: {error.message || "Unknown error occurred"}</Text>
+            )}
+          </Alert>
+          <Button size="sm" colorScheme="blue" onClick={() => refetch()}>
+            Try Again
+          </Button>
+        </Box>
       ) : data ? (
-        <VStack align="start" spacing={2}>
-          <Box>
-            <Text fontWeight="semibold">Status:</Text>
-            <StatusBadge status={data.status} />
+        <VStack align="start" spacing={4}>
+          <Box w="100%">
+            <Text color="gray.400" fontSize="sm">
+              Status:
+            </Text>
+            <Badge
+              colorScheme={getStatusColor(data.status)}
+              px={2}
+              py={1}
+              borderRadius="md"
+              fontSize="sm"
+              textTransform="capitalize"
+            >
+              {data.status.toUpperCase()}
+            </Badge>
           </Box>
-          <Box>
-            <Text fontWeight="semibold">BTC Amount:</Text>
-            <Text>{data.btcAmount} BTC</Text>
+
+          <Box w="100%">
+            <Text color="gray.400" fontSize="sm">
+              BTC Amount:
+            </Text>
+            <Text color="white">{formatBtcAmount(data.btcAmount)} BTC</Text>
           </Box>
-          <Box>
-            <Text fontWeight="semibold">sBTC Amount:</Text>
-            <Text>{data.sbtcAmount || "Pending"} sBTC</Text>
+
+          <Box w="100%">
+            <Text color="gray.400" fontSize="sm">
+              sBTC Amount:
+            </Text>
+            <Text color="white">
+              {data.sbtcAmount ? formatBtcAmount(data.sbtcAmount) : "Pending"}{" "}
+              sBTC
+            </Text>
           </Box>
-          {data.btcTxId && (
-            <Box>
-              <Text fontWeight="semibold">BTC Transaction:</Text>
-              <Text fontSize="sm" isTruncated maxW="100%">
-                {data.btcTxId}
+
+          <Box w="100%">
+            <Text color="gray.400" fontSize="sm">
+              BTC Transaction:
+            </Text>
+            {data.btcTxId ? (
+              <Link
+                href={`https://mempool.space/tx/${data.btcTxId}`}
+                isExternal
+                color="teal.300"
+                fontSize="md"
+                display="flex"
+                alignItems="center"
+              >
+                {getTruncatedTxId(data.btcTxId)}
+                <ExternalLinkIcon ml={1} boxSize={3} />
+              </Link>
+            ) : (
+              <Text color="gray.400">N/A</Text>
+            )}
+          </Box>
+
+          <Box w="100%">
+            <Text color="gray.400" fontSize="sm">
+              Created:
+            </Text>
+            <Text color="white">
+              {new Date(data.createdAt).toLocaleString()}
+            </Text>
+          </Box>
+
+          {data.updatedAt && (
+            <Box w="100%">
+              <Text color="gray.400" fontSize="sm">
+                Last Updated:
+              </Text>
+              <Text color="white">
+                {new Date(data.updatedAt).toLocaleString()}
               </Text>
             </Box>
           )}
-          <Box>
-            <Text fontWeight="semibold">Created:</Text>
-            <Text>{new Date(data.createdAt).toLocaleString()}</Text>
-          </Box>
-          {data.updatedAt && (
-            <Box>
-              <Text fontWeight="semibold">Last Updated:</Text>
-              <Text>{new Date(data.updatedAt).toLocaleString()}</Text>
-            </Box>
-          )}
-          <Button size="sm" colorScheme="blue" onClick={() => refetch()}>
+
+          <Button
+            size="sm"
+            colorScheme="teal"
+            onClick={() => refetch()}
+            bg="#2FCCB0"
+            color="black"
+            _hover={{ bg: "#2AB79F" }}
+            mt={2}
+          >
             Refresh
           </Button>
         </VStack>
       ) : (
-        <Text>No data available</Text>
+        <Text color="gray.400">No data available</Text>
       )}
     </Box>
   );
 
   return (
     <Box>
-      <Tabs isFitted colorScheme="teal" variant="enclosed">
+      <Tabs isFitted colorScheme="teal" variant="enclosed" bg="transparent">
         <TabList>
-          <Tab>Track by Deposit ID</Tab>
-          <Tab>Track by Transaction ID</Tab>
+          <Tab
+            _selected={{
+              color: "white",
+              bg: "#2D2D43",
+              borderBottomColor: "transparent",
+            }}
+            color="gray.400"
+          >
+            Track by Deposit ID
+          </Tab>
+          <Tab
+            _selected={{
+              color: "white",
+              bg: "#2D2D43",
+              borderBottomColor: "transparent",
+            }}
+            color="gray.400"
+          >
+            Track by Transaction ID
+          </Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
             <form onSubmit={handleDepositIdSubmit}>
               <FormControl>
-                <FormLabel>Deposit ID</FormLabel>
+                <FormLabel color="gray.400">Deposit ID</FormLabel>
                 <Input
                   placeholder="Enter your deposit ID"
                   value={depositIdInput}
                   onChange={(e) => setDepositIdInput(e.target.value)}
+                  bg="#232830"
+                  borderColor="rgba(255, 255, 255, 0.1)"
+                  _hover={{ borderColor: "teal.300" }}
+                  _focus={{ borderColor: "teal.300", boxShadow: "none" }}
+                  color="white"
                 />
               </FormControl>
               <Button
@@ -175,6 +275,9 @@ const StatusTracker = () => {
                 colorScheme="teal"
                 type="submit"
                 isDisabled={!depositIdInput.trim()}
+                bg="#2FCCB0"
+                color="black"
+                _hover={{ bg: "#2AB79F" }}
               >
                 Track Status
               </Button>
@@ -182,11 +285,11 @@ const StatusTracker = () => {
 
             {depositId && (
               <StatusDisplay
-                title={`Status for Deposit: ${depositId}`}
                 data={depositStatus}
                 isLoading={isDepositStatusLoading}
                 error={depositStatusError}
                 refetch={refetchDepositStatus}
+                idType="deposit"
               />
             )}
           </TabPanel>
@@ -194,11 +297,16 @@ const StatusTracker = () => {
           <TabPanel>
             <form onSubmit={handleBtcTxIdSubmit}>
               <FormControl>
-                <FormLabel>Bitcoin Transaction ID</FormLabel>
+                <FormLabel color="gray.400">Bitcoin Transaction ID</FormLabel>
                 <Input
                   placeholder="Enter Bitcoin transaction ID"
                   value={btcTxIdInput}
                   onChange={(e) => setBtcTxIdInput(e.target.value)}
+                  bg="#232830"
+                  borderColor="rgba(255, 255, 255, 0.1)"
+                  _hover={{ borderColor: "teal.300" }}
+                  _focus={{ borderColor: "teal.300", boxShadow: "none" }}
+                  color="white"
                 />
               </FormControl>
               <Button
@@ -206,6 +314,9 @@ const StatusTracker = () => {
                 colorScheme="teal"
                 type="submit"
                 isDisabled={!btcTxIdInput.trim()}
+                bg="#2FCCB0"
+                color="black"
+                _hover={{ bg: "#2AB79F" }}
               >
                 Track Status
               </Button>
@@ -213,11 +324,11 @@ const StatusTracker = () => {
 
             {btcTxId && (
               <StatusDisplay
-                title={`Status for Transaction: ${btcTxId.substring(0, 10)}...`}
                 data={txStatus}
                 isLoading={isTxStatusLoading}
                 error={txStatusError}
                 refetch={refetchTxStatus}
+                idType="transaction"
               />
             )}
           </TabPanel>

@@ -7,13 +7,20 @@ const useSdkDepositStatusByTxId = (btcTxId: string | null) => {
     queryKey: ["depositStatusByTxId", btcTxId],
     queryFn: async () => {
       if (!btcTxId) return null;
-      console.log(`Fetching status for transaction ${btcTxId}...`);
-      const data = await styxSDK.getDepositStatusByTxId(btcTxId);
-      console.log(`Received status for transaction ${btcTxId}:`, data);
-      return data;
+      try {
+        console.log(`Fetching status for transaction ${btcTxId}...`);
+        const data = await styxSDK.getDepositStatusByTxId(btcTxId);
+        console.log(`Received status for transaction ${btcTxId}:`, data);
+        return data;
+      } catch (error) {
+        console.error(`Error fetching transaction status:`, error);
+        // Re-throw to be caught by React Query's error handling
+        throw error;
+      }
     },
     enabled: !!btcTxId,
     staleTime: 30000, // 30 seconds, as status may change frequently
+    retry: false, // Don't retry 404 errors
   });
 };
 
