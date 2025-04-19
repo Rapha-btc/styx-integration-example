@@ -123,7 +123,7 @@ const NavBar = () => {
   const [activeChain, setActiveChain] = useState<"bitcoin" | "stacks">(
     "bitcoin"
   );
-  const { userSession } = useUserSession();
+  const { activeWalletProvider } = useUserSession();
 
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -132,19 +132,12 @@ const NavBar = () => {
 
   // Determine wallet provider - you would have this info from your authentication
   const getWalletProvider = () => {
-    if (userSession.isUserSignedIn()) {
-      const userData = userSession.loadUserData();
-      return (
-        (userData.profile?.walletProvider as "leather" | "xverse") || "leather"
-      );
-    }
-    return "leather"; // Default
+    return activeWalletProvider || "leather"; // Default to leather if not detected
   };
 
   // Select the appropriate icon based on the provider
   const getWalletIconPath = () => {
-    const provider = getWalletProvider();
-    return provider === "leather" ? leatherIcon : xverseIcon;
+    return getWalletProvider() === "leather" ? leatherIcon : xverseIcon;
   };
 
   // handleAiDAOClick

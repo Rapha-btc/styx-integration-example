@@ -39,16 +39,47 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     btcBalance,
     sbtcBalance, // Using sBTC balance from context
     userSession,
+    activeWalletProvider,
   } = useUserSession();
   const [bnsName, setBnsName] = useState<string | null>(null);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  const handleClick = () => {
-    if (isSignedIn) {
+  const handleClick = async () => {
+    if (!isSignedIn) {
+      // Not signed in, authenticate normally
+      authenticate();
+    } else if (!btcAddress) {
+      // Connected to Stacks but no BTC address - show a confirm dialog
+      if (
+        confirm(
+          "Do you want to connect your Bitcoin address? Click Cancel to disconnect instead."
+        )
+      ) {
+        // User chose to connect Bitcoin
+        if (activeWalletProvider === "leather") {
+          // Handle Leather wallet
+          try {
+            const { requestLeatherBtcAddress } = await import(
+              "../stxConnect/auth"
+            );
+            await requestLeatherBtcAddress();
+            window.location.reload();
+          } catch (error) {
+            console.error("Error connecting Leather Bitcoin address:", error);
+          }
+        } else if (activeWalletProvider === "xverse") {
+          // For Xverse, re-authenticate which should prompt for Bitcoin
+          authenticate();
+        }
+      } else {
+        // User chose to disconnect
+        userSession.signUserOut();
+        window.location.reload();
+      }
+    } else {
+      // Both Stacks and BTC connected - disconnect
       userSession.signUserOut();
       window.location.reload();
-    } else {
-      authenticate();
     }
   };
 
