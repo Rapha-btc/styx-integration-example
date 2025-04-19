@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useUserSession } from "../context/UserSessionContext";
-import { authenticate } from "./auth";
+import { authenticate, requestLeatherBtcAddress } from "./auth";
 import {
   Button,
   ButtonProps,
@@ -17,6 +17,11 @@ import {
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import BnsResolver from "./BnsResolver";
 import { LuLogOut } from "react-icons/lu";
+import { useNavigate } from "react-router-dom";
+
+// Import wallet icons
+import leatherIcon from "../assets/Leather.jpg";
+import xverseIcon from "../assets/xverse.png";
 
 // Define the ConnectWallet component props
 interface ConnectWalletProps extends ButtonProps {
@@ -44,32 +49,36 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
   const [bnsName, setBnsName] = useState<string | null>(null);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
+  const navigate = useNavigate();
+
+  // Replace redirect function
+  const handleDepositRedirect = () => {
+    navigate("/deposit");
+  };
+
   const handleClick = async () => {
     if (!isSignedIn) {
       // Not signed in, authenticate normally
       authenticate();
     } else if (!btcAddress) {
-      // Connected to Stacks but no BTC address - show a confirm dialog
+      // Connected to Stacks but no BTC address
       if (
         confirm(
           "Do you want to connect your Bitcoin address? Click Cancel to disconnect instead."
         )
       ) {
         // User chose to connect Bitcoin
-        if (activeWalletProvider === "leather") {
-          // Handle Leather wallet
-          try {
-            const { requestLeatherBtcAddress } = await import(
-              "../stxConnect/auth"
-            );
+        try {
+          if (activeWalletProvider === "leather") {
+            // Handle Leather wallet (with or without Ledger)
             await requestLeatherBtcAddress();
             window.location.reload();
-          } catch (error) {
-            console.error("Error connecting Leather Bitcoin address:", error);
+          } else {
+            // Fallback for any other wallet provider
+            authenticate();
           }
-        } else if (activeWalletProvider === "xverse") {
-          // For Xverse, re-authenticate which should prompt for Bitcoin
-          authenticate();
+        } catch (error) {
+          console.error("Error connecting Bitcoin address:", error);
         }
       } else {
         // User chose to disconnect
@@ -158,7 +167,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
         <Box width="20px" height="20px" mr={1}>
           <Image
             src={walletIconPath}
-            alt={`${walletProvider} wallet`}
+            alt={`${activeWalletProvider || walletProvider} wallet`}
             width="100%"
             height="100%"
           />
@@ -166,7 +175,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
       );
     }
 
-    // Return a fallback element to avoid TypeScript errors
+    // Return a fallback with the correct icon based on detected wallet provider
     return (
       <Box
         width="20px"
@@ -176,7 +185,12 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
         alignItems="center"
         justifyContent="center"
       >
-        {walletProvider === "leather" ? "L" : "X"}
+        <Image
+          src={activeWalletProvider === "xverse" ? xverseIcon : leatherIcon}
+          alt={activeWalletProvider === "xverse" ? "Xverse" : "Leather"}
+          width="100%"
+          height="100%"
+        />
       </Box>
     );
   };
@@ -276,6 +290,8 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
             _hover={{ bg: "#2A2A2A" }}
             px={4}
             leftIcon={getBitcoinIcon()}
+            onClick={handleDepositRedirect}
+            cursor="pointer"
           >
             <Text fontSize="sm" fontWeight="medium">
               {getBalance()}
@@ -333,6 +349,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
             _focus={{ bg: "gray.800" }}
             height="36px"
             px={2}
+            onClick={handleDepositRedirect}
           >
             <HStack>
               {getBitcoinIcon()}
@@ -353,6 +370,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
             _focus={{ bg: "gray.800" }}
             height="36px"
             px={2}
+            onClick={handleDepositRedirect}
           >
             <HStack>
               {getBitcoinIcon()}
@@ -364,6 +382,43 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
                   {formatBtcBalance(sbtcBalance)}
                 </Text>
               </Box>
+            </HStack>
+          </MenuItem>
+          {/* Deposit Item */}
+          <MenuItem
+            onClick={handleDepositRedirect}
+            bg="gray.900"
+            _hover={{ bg: "gray.800" }}
+            _focus={{ bg: "gray.800" }}
+            height="40px"
+          >
+            <HStack spacing={2}>
+              <Box
+                width="14px"
+                height="14px"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 4V20M12 4L6 10M12 4L18 10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Box>
+              <Text fontSize="xs" fontWeight="medium">
+                Deposit
+              </Text>
             </HStack>
           </MenuItem>
           {/* Disconnect Item */}
