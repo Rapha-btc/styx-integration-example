@@ -56,38 +56,55 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     navigate("/deposit");
   };
 
+  // In ConnectWallet.tsx - Updated handleClick with debugging
+
+  // In ConnectWallet.tsx
   const handleClick = async () => {
     if (!isSignedIn) {
       // Not signed in, authenticate normally
       authenticate();
     } else if (!btcAddress) {
-      // Connected to Stacks but no BTC address
-      if (
-        confirm(
-          "Do you want to connect your Bitcoin address? Click Cancel to disconnect instead."
-        )
-      ) {
-        // User chose to connect Bitcoin
-        try {
-          if (activeWalletProvider === "leather") {
-            // Handle Leather wallet (with or without Ledger)
-            await requestLeatherBtcAddress();
-            window.location.reload();
-          } else {
-            // Fallback for any other wallet provider
-            authenticate();
+      // Connected to Stacks but no BTC address - connect Bitcoin
+      try {
+        console.log("Requesting BTC address from Leather...");
+
+        // Request addresses through Leather API
+        if (window.LeatherProvider) {
+          const response = await window.LeatherProvider.request(
+            "getAddresses",
+            {
+              currencies: ["BTC"],
+            }
+          );
+
+          console.log("BTC address response:", response);
+
+          // If we got a successful response with a BTC address
+          if (response?.result?.addresses) {
+            const btcAddressInfo = response.result.addresses.find(
+              (addr: { symbol: string; address?: string }) =>
+                addr.symbol === "BTC"
+            );
+
+            if (btcAddressInfo?.address) {
+              console.log("Got BTC address:", btcAddressInfo.address);
+
+              // Store the BTC address in local storage so it persists
+              localStorage.setItem("btcAddress", btcAddressInfo.address);
+
+              // Force a page reload to update the UI
+              window.location.reload();
+              return;
+            }
           }
-        } catch (error) {
-          console.error("Error connecting Bitcoin address:", error);
         }
-      } else {
-        // User chose to disconnect
-        userSession.signUserOut();
-        window.location.reload();
+      } catch (error) {
+        console.error("Error connecting Bitcoin:", error);
       }
     } else {
-      // Both Stacks and BTC connected - disconnect
+      // Both Stacks and BTC connected - clicking should disconnect
       userSession.signUserOut();
+      localStorage.removeItem("btcAddress"); // Clear the stored BTC address
       window.location.reload();
     }
   };
@@ -146,8 +163,18 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     // Desktop behavior - respect active chain
     if (activeChain === "bitcoin") {
       console.log("Desktop Bitcoin chain active");
-      if (!btcAddress) return "No BTC Address";
-      return `${btcAddress.slice(0, 6)}...${btcAddress.slice(-4)}`;
+      console.log("BTC Address value:", btcAddress);
+
+      if (!btcAddress) {
+        console.log("No BTC address detected, showing Connect BTC");
+        return "Connect BTC";
+      }
+
+      const displayAddress = `${btcAddress.slice(0, 6)}...${btcAddress.slice(
+        -4
+      )}`;
+      console.log("BTC address found, showing:", displayAddress);
+      return displayAddress;
     } else {
       console.log("Desktop Stacks chain active");
       if (hasValidBns) return bnsName;

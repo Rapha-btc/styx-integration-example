@@ -7,7 +7,6 @@ import React, {
   useCallback,
 } from "react";
 import { AppConfig, UserSession } from "@stacks/connect";
-import { StacksMainnet } from "@stacks/network";
 import { stacksApiClient } from "../services/stacks-api-client"; // Import your API client
 
 const appConfig = new AppConfig(["store_write", "publish_data"]);
@@ -57,59 +56,6 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
     "leather" | "xverse" | null
   >(null);
   const [isBalancesLoading, setIsBalancesLoading] = useState(false);
-
-  // Define attemptBtcRetrieval at component level (not inside fetchBalances)
-  const attemptBtcRetrieval = useCallback(async () => {
-    // Only try this if:
-    // 1. We're signed in
-    // 2. We have a Stacks address
-    // 3. We don't have a BTC address
-    // 4. We're using Leather wallet
-    if (
-      isSignedIn &&
-      userAddress &&
-      !btcAddress &&
-      activeWalletProvider === "leather"
-    ) {
-      try {
-        // Check if we can access the Leather provider
-        if (window.LeatherProvider) {
-          console.log(
-            "Attempting to retrieve BTC address for Leather+Ledger user..."
-          );
-
-          // Request BTC address
-          const response = await window.LeatherProvider.request(
-            "getAddresses",
-            {
-              currencies: ["BTC"],
-            }
-          );
-
-          if (response?.result?.addresses) {
-            const btcAddrInfo = response.result.addresses.find(
-              (addr: { symbol: string; address?: string }) =>
-                addr.symbol === "BTC"
-            );
-
-            if (btcAddrInfo?.address) {
-              console.log(
-                "Successfully retrieved BTC address:",
-                btcAddrInfo.address
-              );
-              setBtcAddress(btcAddrInfo.address);
-              return btcAddrInfo.address;
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error in BTC address auto-retrieval:", error);
-        // Just log the error, don't interrupt the flow
-      }
-    }
-
-    return null;
-  }, [isSignedIn, userAddress, btcAddress, activeWalletProvider]);
 
   // Function to fetch balances
   const fetchBalances = useCallback(async () => {
@@ -199,6 +145,7 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // Detect wallet type and get BTC address based on structure
+        // Detect wallet type and get BTC address based on structure
         let btcAddr = null;
         let detectedWalletProvider: "xverse" | "leather" | null = null;
 
@@ -216,12 +163,24 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
             userData.profile.btcAddress?.p2wpkh?.mainnet ||
             userData.profile.btcAddress?.p2tr?.mainnet;
           detectedWalletProvider = "leather";
+        } else {
+          // If no BTC address in profile, check localStorage
+          const storedBtcAddress = localStorage.getItem("btcAddress");
+          if (storedBtcAddress) {
+            console.log("Found BTC address in localStorage:", storedBtcAddress);
+            btcAddr = storedBtcAddress;
+            detectedWalletProvider = "leather"; // Assume Leather if using localStorage
+          }
         }
 
         // Update the btcAddress state if it changed
         if (btcAddr !== btcAddress) {
           setBtcAddress(btcAddr);
         }
+
+        // Add this right after loading user data
+        console.log("User data profile:", userData.profile);
+        console.log("BTC address in profile:", userData.profile.btcAddress);
 
         // Update the wallet provider if needed
         if (detectedWalletProvider !== activeWalletProvider) {
@@ -241,26 +200,7 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
     const signInCheckInterval = setInterval(checkSignIn, 1000);
 
     return () => clearInterval(signInCheckInterval);
-  }, [isSignedIn, userAddress, btcAddress, activeWalletProvider]);
-
-  // Add a separate useEffect for BTC address retrieval
-  useEffect(() => {
-    // Attempt to retrieve BTC address for Leather+Ledger users
-    if (
-      isSignedIn &&
-      userAddress &&
-      !btcAddress &&
-      activeWalletProvider === "leather"
-    ) {
-      attemptBtcRetrieval();
-    }
-  }, [
-    isSignedIn,
-    userAddress,
-    btcAddress,
-    activeWalletProvider,
-    attemptBtcRetrieval,
-  ]);
+  }, [isSignedIn, userAddress, btcAddress]);
 
   // Fetch balances when addresses change and then once every minute
   useEffect(() => {
