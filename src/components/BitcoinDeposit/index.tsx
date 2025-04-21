@@ -40,16 +40,23 @@ const BitcoinDeposit = () => {
   );
   const { price: btcUsdPrice } = useFormattedBtcPrice();
   const { data: poolStatus } = useSdkPoolStatus();
-  const { data: depositHistory, isLoading: isDepositHistoryLoading } =
-    useSdkDepositHistory(userAddress);
-  const { data: allDepositsHistory, isLoading: isAllDepositsHistoryLoading } =
-    useSdkAllDepositsHistory();
+  const {
+    data: depositHistory,
+    isLoading: isDepositHistoryLoading,
+    refetch: refetchDepositHistory,
+  } = useSdkDepositHistory(userAddress);
+  const {
+    data: allDepositsHistory,
+    isLoading: isAllDepositsHistoryLoading,
+    refetch: refetchAllDeposits,
+  } = useSdkAllDepositsHistory();
+  const [isRefetching, setIsRefetching] = useState(false);
 
   return (
     <Box maxW="500px" mx="auto" mt={8}>
       <Box mb={6} textAlign="center">
         <Text fontSize="xl" color="white">
-          Deposit BTC in just 1 Bitcoin block
+          Deposit BTC in just 1 confirmation
         </Text>
         <Text fontSize="sm" color="gray.400">
           Fast, secure, and trustless
@@ -134,6 +141,7 @@ const BitcoinDeposit = () => {
               depositHistory={depositHistory}
               isLoading={isDepositHistoryLoading}
               btcUsdPrice={btcUsdPrice || 100000}
+              isRefetching={isRefetching}
             />
           </TabPanel>
 
@@ -142,6 +150,7 @@ const BitcoinDeposit = () => {
               allDepositsHistory={allDepositsHistory}
               isLoading={isAllDepositsHistoryLoading}
               btcUsdPrice={btcUsdPrice || 100000}
+              isRefetching={isRefetching}
             />
           </TabPanel>
 
@@ -159,6 +168,9 @@ const BitcoinDeposit = () => {
           onClose={() => setShowConfirmation(false)}
           feePriority={feePriority}
           setFeePriority={setFeePriority}
+          refetchDepositHistory={refetchDepositHistory}
+          refetchAllDeposits={refetchAllDeposits}
+          setIsRefetching={setIsRefetching}
         />
       )}
     </Box>

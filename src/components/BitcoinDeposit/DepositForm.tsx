@@ -424,6 +424,32 @@ const DepositForm: React.FC<DepositFormProps> = ({
                 reading. No intermediaries or multi-signature scheme needed.
                 Trustless. Fast. Secure.
               </Text>
+              {/* YouTube video embed */}
+              <Box
+                borderRadius="md"
+                overflow="hidden"
+                position="relative"
+                width="100%"
+                paddingBottom="56.25%" /* 16:9 Aspect Ratio */
+                height="0"
+                mt={3}
+              >
+                <iframe
+                  src="https://www.youtube.com/embed/WzPYK8ANC5A"
+                  title="Bitcoin Deposit Demo"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "md",
+                  }}
+                />
+              </Box>
             </AccordionPanel>
           </AccordionItem>
         </Accordion>

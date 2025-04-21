@@ -40,6 +40,9 @@ interface TransactionConfirmationProps {
   onClose: () => void;
   feePriority: TransactionPriority;
   setFeePriority: (priority: TransactionPriority) => void;
+  refetchDepositHistory: () => Promise<any>;
+  refetchAllDeposits: () => Promise<any>;
+  setIsRefetching: (isRefetching: boolean) => void;
 }
 
 interface XverseSignPsbtResponse {
@@ -72,6 +75,9 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
   onClose,
   feePriority,
   setFeePriority,
+  refetchDepositHistory,
+  refetchAllDeposits,
+  setIsRefetching,
 }) => {
   const { userAddress, btcAddress, activeWalletProvider } = useUserSession();
   const [btcTxStatus, setBtcTxStatus] = useState<
@@ -565,7 +571,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
         // Show success message
         toast({
           title: "Deposit Initiated",
-          description: `Your Bitcoin transaction has been sent successfully with txid: ${txid.substring(
+          description: `Your Bitcoin transaction has been sent successfully with txid ${txid.substring(
             0,
             10
           )}...`,
@@ -576,6 +582,22 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
 
         // Close confirmation dialog
         onClose();
+        // Trigger data refetch with loading indicator
+        setIsRefetching(true);
+        Promise.all([refetchDepositHistory(), refetchAllDeposits()]).finally(
+          () => {
+            setIsRefetching(false);
+            // Optionally show a toast to confirm refresh
+            toast({
+              title: "Data Refreshed",
+              description: "Your transaction history has been updated",
+              status: "info",
+              duration: 3000,
+              isClosable: true,
+              position: "bottom-right",
+            });
+          }
+        );
       } catch (err: any) {
         const error = err as Error;
         console.error("Error in Bitcoin transaction process:", error);

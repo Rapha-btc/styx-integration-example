@@ -29,6 +29,7 @@ interface AllDepositsProps {
   allDepositsHistory: Deposit[] | undefined;
   isLoading: boolean;
   btcUsdPrice: number | null;
+  isRefetching?: boolean;
 }
 
 // AddressCell Component
@@ -67,6 +68,7 @@ const AllDeposits: React.FC<AllDepositsProps> = ({
   allDepositsHistory,
   isLoading,
   btcUsdPrice,
+  isRefetching = false,
 }) => {
   // Format BTC amount for display
   const formatBtcAmount = (amount: number | null): string => {
@@ -172,7 +174,31 @@ const AllDeposits: React.FC<AllDepositsProps> = ({
           borderRadius="xl"
           overflow="hidden"
           border="1px solid rgba(255, 255, 255, 0.1)"
+          position="relative"
         >
+          {/* Add refetching overlay */}
+          {isRefetching && (
+            <Box
+              position="absolute"
+              top="0"
+              left="0"
+              right="0"
+              bottom="0"
+              bg="rgba(0, 0, 0, 0.6)"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              zIndex="10"
+              borderRadius="xl"
+            >
+              <VStack>
+                <Spinner color="teal.300" size="md" />
+                <Text color="white" fontSize="sm">
+                  Updating history...
+                </Text>
+              </VStack>
+            </Box>
+          )}
           <Table variant="simple" size="sm">
             <Thead bg="#1A1A2F">
               <Tr>
