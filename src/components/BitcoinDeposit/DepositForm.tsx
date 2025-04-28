@@ -120,30 +120,25 @@ const DepositForm: React.FC<DepositFormProps> = ({
       );
       const data = await response.json();
 
-      // Start with the raw values
-      let lowRate = data.minimumFee;
-      let mediumRate = data.economyFee;
-      let highRate = data.fastestFee;
+      // Log the raw values to help with debugging
+      console.log("Raw mempool.space fee data:", data);
 
-      // Ensure proper separation between tiers (at least 1 sat/vB difference)
-      if (mediumRate <= lowRate) {
-        mediumRate = lowRate + 1;
-      }
-      if (highRate <= mediumRate) {
-        highRate = mediumRate + 1;
-      }
+      // Map to the correct fee estimate fields
+      const lowRate = data.hourFee;
+      const mediumRate = data.halfHourFee;
+      const highRate = data.fastestFee;
 
-      // Convert to the format the component expects
+      // Don't modify the rates, use them as-is
       return {
         low: {
           rate: lowRate,
           fee: Math.round(lowRate * 148),
-          time: "30 min",
+          time: "~1 hour",
         },
         medium: {
           rate: mediumRate,
           fee: Math.round(mediumRate * 148),
-          time: "~20 min",
+          time: "~30 min",
         },
         high: {
           rate: highRate,
@@ -153,10 +148,10 @@ const DepositForm: React.FC<DepositFormProps> = ({
       };
     } catch (error) {
       console.error("Error fetching fee estimates from mempool.space:", error);
-      // Fallback to default low values
+      // Fallback to default values that better reflect current network conditions
       return {
-        low: { rate: 1, fee: 148, time: "30 min" },
-        medium: { rate: 2, fee: 296, time: "~20 min" },
+        low: { rate: 3, fee: 444, time: "~1 hour" },
+        medium: { rate: 3, fee: 444, time: "~30 min" },
         high: { rate: 5, fee: 740, time: "~10 min" },
       };
     }
@@ -202,6 +197,17 @@ const DepositForm: React.FC<DepositFormProps> = ({
       if (!btcAddress) {
         throw new Error("No Bitcoin address found in your wallet");
       }
+
+      // IMPORTANT CHANGE: Calculate the total amount including service fee
+      const userInputAmount = parseFloat(amount);
+      const serviceFee = parseFloat(calculateFee(amount));
+      const totalAmount = (userInputAmount + serviceFee).toFixed(8);
+
+      console.log("Transaction amounts:", {
+        userInputAmount,
+        serviceFee,
+        totalAmount,
+      });
 
       // CHANGE 1: Always fetch fee estimates directly from mempool.space
       let currentFeeRates;
@@ -287,8 +293,9 @@ const DepositForm: React.FC<DepositFormProps> = ({
       try {
         console.log("Preparing transaction with SDK...");
 
+        // Prepare transaction data
         const transactionData = await styxSDK.prepareTransaction({
-          amount,
+          amount: totalAmount, // Now includes service fee
           userAddress,
           btcAddress,
           feePriority: "medium",
@@ -299,7 +306,7 @@ const DepositForm: React.FC<DepositFormProps> = ({
         console.log("Transaction prepared:", transactionData);
 
         setConfirmationData({
-          depositAmount: amount,
+          depositAmount: totalAmount,
           depositAddress: transactionData.depositAddress,
           stxAddress: userAddress,
           opReturnHex: transactionData.opReturnData,
