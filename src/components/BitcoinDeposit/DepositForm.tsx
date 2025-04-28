@@ -46,6 +46,11 @@ const DepositForm: React.FC<DepositFormProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const toast = useToast();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [feeEstimates, setFeeEstimates] = useState({
+    low: { rate: 1, fee: 0, time: "30 min" },
+    medium: { rate: 3, fee: 0, time: "~20 min" },
+    high: { rate: 5, fee: 0, time: "~10 min" },
+  });
 
   const formatUsdValue = (amount: number): string => {
     if (!amount || amount <= 0) return "$0.00";
@@ -107,6 +112,56 @@ const DepositForm: React.FC<DepositFormProps> = ({
     }
   };
 
+  const fetchMempoolFeeEstimates = async () => {
+    try {
+      console.log("Fetching fee estimates directly from mempool.space");
+      const response = await fetch(
+        "https://mempool.space/api/v1/fees/recommended"
+      );
+      const data = await response.json();
+
+      // Start with the raw values
+      let lowRate = data.minimumFee;
+      let mediumRate = data.economyFee;
+      let highRate = data.fastestFee;
+
+      // Ensure proper separation between tiers (at least 1 sat/vB difference)
+      if (mediumRate <= lowRate) {
+        mediumRate = lowRate + 1;
+      }
+      if (highRate <= mediumRate) {
+        highRate = mediumRate + 1;
+      }
+
+      // Convert to the format the component expects
+      return {
+        low: {
+          rate: lowRate,
+          fee: Math.round(lowRate * 148),
+          time: "30 min",
+        },
+        medium: {
+          rate: mediumRate,
+          fee: Math.round(mediumRate * 148),
+          time: "~20 min",
+        },
+        high: {
+          rate: highRate,
+          fee: Math.round(highRate * 148),
+          time: "~10 min",
+        },
+      };
+    } catch (error) {
+      console.error("Error fetching fee estimates from mempool.space:", error);
+      // Fallback to default low values
+      return {
+        low: { rate: 1, fee: 148, time: "30 min" },
+        medium: { rate: 2, fee: 296, time: "~20 min" },
+        high: { rate: 5, fee: 740, time: "~10 min" },
+      };
+    }
+  };
+
   const handleDepositConfirm = async (): Promise<void> => {
     if (maintenanceMode) {
       toast({
@@ -146,6 +201,27 @@ const DepositForm: React.FC<DepositFormProps> = ({
     try {
       if (!btcAddress) {
         throw new Error("No Bitcoin address found in your wallet");
+      }
+
+      // CHANGE 1: Always fetch fee estimates directly from mempool.space
+      let currentFeeRates;
+      try {
+        console.log(
+          "Fetching fresh fee estimates before transaction preparation"
+        );
+        const estimatesResult = await fetchMempoolFeeEstimates();
+        currentFeeRates = {
+          low: estimatesResult.low.rate,
+          medium: estimatesResult.medium.rate,
+          high: estimatesResult.high.rate,
+        };
+
+        // Update the UI fee display
+        setFeeEstimates(estimatesResult);
+        console.log("Using fee rates:", currentFeeRates);
+      } catch (error) {
+        console.warn("Error fetching fee estimates, using defaults:", error);
+        currentFeeRates = { low: 1, medium: 3, high: 5 };
       }
 
       const amountInSats = Math.round(parseFloat(amount) * 100000000);
@@ -217,6 +293,7 @@ const DepositForm: React.FC<DepositFormProps> = ({
           btcAddress,
           feePriority: "medium",
           walletProvider: activeWalletProvider,
+          feeRates: currentFeeRates,
         });
 
         console.log("Transaction prepared:", transactionData);
