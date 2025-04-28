@@ -194,6 +194,7 @@ const TransactionConfirmation: React.FC<TransactionConfirmationProps> = ({
         btcAmount: parseFloat(confirmationData.depositAmount),
         stxReceiver: userAddress || "",
         btcSender: btcAddress || "",
+        isBlaze: confirmationData.isBlaze || false,
       });
       console.log("Create deposit depositId:", depositId);
 

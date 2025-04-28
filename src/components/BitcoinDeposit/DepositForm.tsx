@@ -14,6 +14,7 @@ import {
   AccordionIcon,
   AccordionItem,
   AccordionPanel,
+  Badge,
 } from "@chakra-ui/react";
 import { useUserSession } from "../../context/UserSessionContext";
 import TokenSvg from "../../utils/TokenSvg";
@@ -51,6 +52,7 @@ const DepositForm: React.FC<DepositFormProps> = ({
     medium: { rate: 3, fee: 0, time: "~20 min" },
     high: { rate: 5, fee: 0, time: "~10 min" },
   });
+  const [useBlazeSubnet, setUseBlazeSubnet] = useState<boolean>(false);
 
   const formatUsdValue = (amount: number): string => {
     if (!amount || amount <= 0) return "$0.00";
@@ -310,6 +312,7 @@ const DepositForm: React.FC<DepositFormProps> = ({
           depositAddress: transactionData.depositAddress,
           stxAddress: userAddress,
           opReturnHex: transactionData.opReturnData,
+          isBlaze: useBlazeSubnet,
         });
 
         setShowConfirmation(true);
@@ -538,7 +541,116 @@ const DepositForm: React.FC<DepositFormProps> = ({
           </AccordionItem>
         </Accordion>
       </Box>
-      // Replace the Action Button section in BitcoinDeposit.tsx with this:
+      {/* Blaze Fast Subnet Option */}
+      <Box
+        bg="#242731"
+        p={3}
+        borderRadius="xl"
+        mt={2}
+        mb={2}
+        border="1px solid rgba(255, 255, 255, 0.1)"
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        cursor="pointer"
+        onClick={() => setUseBlazeSubnet(!useBlazeSubnet)}
+        _hover={{
+          bg: "#2A2D38",
+        }}
+      >
+        <HStack>
+          <Box position="relative">
+            <Box
+              width="24px"
+              height="24px"
+              borderRadius="md"
+              bg={useBlazeSubnet ? "#2FCCB0" : "transparent"}
+              border="2px solid"
+              borderColor={
+                useBlazeSubnet ? "#2FCCB0" : "rgba(255, 255, 255, 0.3)"
+              }
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              transition="all 0.2s"
+            >
+              {useBlazeSubnet && (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M20 6L9 17L4 12"
+                    stroke="black"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </Box>
+            {useBlazeSubnet && (
+              <Box
+                position="absolute"
+                top="-3px"
+                right="-3px"
+                width="10px"
+                height="10px"
+                borderRadius="full"
+                bg="#FF6B00"
+              />
+            )}
+          </Box>
+          <VStack align="start" spacing={0}>
+            <Text color="white" fontWeight="medium" fontSize="sm">
+              Use Blaze Fast Subnet
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              Near-instant confirmations with high throughput
+            </Text>
+          </VStack>
+        </HStack>
+        <HStack>
+          <Badge
+            variant="solid"
+            bg="#FF6B00"
+            color="black"
+            fontSize="xs"
+            fontWeight="bold"
+            borderRadius="md"
+            px={2}
+          >
+            BETA
+          </Badge>
+          {useBlazeSubnet && (
+            <Box
+              bg="rgba(47, 204, 176, 0.1)"
+              p={1}
+              borderRadius="md"
+              color="#2FCCB0"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M13 10V3L4 14H11V21L20 10H13Z"
+                  stroke="#2FCCB0"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Box>
+          )}
+        </HStack>
+      </Box>
       {/* Action Button */}
       <Button
         colorScheme="teal"

@@ -27,6 +27,7 @@ export type ConfirmationData = {
   depositAddress: string;
   stxAddress: string;
   opReturnHex: string;
+  isBlaze?: boolean;
 };
 
 const BitcoinDeposit = () => {
