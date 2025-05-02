@@ -148,7 +148,18 @@ const BitcoinDeposit = () => {
 
           <TabPanel>
             <AllDeposits
-              allDepositsHistory={allDepositsHistory}
+              allDepositsHistory={
+                allDepositsHistory
+                  ? {
+                      aggregateData: {
+                        ...allDepositsHistory.aggregateData,
+                        totalVolume:
+                          allDepositsHistory.aggregateData.totalVolume.toString(),
+                      },
+                      recentDeposits: allDepositsHistory.recentDeposits,
+                    }
+                  : undefined
+              }
               isLoading={isAllDepositsHistoryLoading}
               btcUsdPrice={btcUsdPrice || 100000}
               isRefetching={isRefetching}

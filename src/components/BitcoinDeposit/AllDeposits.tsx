@@ -26,7 +26,16 @@ import {
 import useResolveBnsOrAddress from "../../hooks/useResolveBnsOrAddress";
 
 interface AllDepositsProps {
-  allDepositsHistory: Deposit[] | undefined;
+  allDepositsHistory:
+    | {
+        aggregateData: {
+          totalDeposits: number;
+          totalVolume: string;
+          uniqueUsers: number;
+        };
+        recentDeposits: Deposit[];
+      }
+    | undefined;
   isLoading: boolean;
   btcUsdPrice: number | null;
   isRefetching?: boolean;
@@ -114,61 +123,57 @@ const AllDeposits: React.FC<AllDepositsProps> = ({
       </Text>
 
       {/* Stats summary box at the top */}
-      {!isLoading && allDepositsHistory && allDepositsHistory.length > 0 && (
-        <Box
-          bg="#1A1A2F"
-          p={4}
-          borderRadius="xl"
-          border="1px solid rgba(255, 255, 255, 0.1)"
-        >
-          <SimpleGrid columns={3} spacing={4}>
-            <Box textAlign="center">
-              <Text color="gray.400" fontSize="xs">
-                Total Deposits
-              </Text>
-              <Text color="teal.300" fontSize="xl" fontWeight="bold">
-                {allDepositsHistory.length}
-              </Text>
-            </Box>
-            <Box textAlign="center">
-              <Text color="gray.400" fontSize="xs">
-                Total Volume
-              </Text>
-              <Text color="teal.300" fontSize="xl" fontWeight="bold">
-                {formatBtcAmount(
-                  allDepositsHistory.reduce(
-                    (sum: number, deposit: Deposit) => sum + deposit.btcAmount,
-                    0
-                  )
-                )}
-              </Text>
-              <Text color="gray.500" fontSize="xs">
-                BTC
-              </Text>
-            </Box>
-            <Box textAlign="center">
-              <Text color="gray.400" fontSize="xs">
-                Unique Users
-              </Text>
-              <Text color="teal.300" fontSize="xl" fontWeight="bold">
-                {
-                  new Set(
-                    allDepositsHistory.map(
-                      (deposit: Deposit) => deposit.stxReceiver
-                    )
-                  ).size
-                }
-              </Text>
-            </Box>
-          </SimpleGrid>
-        </Box>
-      )}
+      {!isLoading &&
+        allDepositsHistory &&
+        allDepositsHistory.recentDeposits &&
+        allDepositsHistory.recentDeposits.length > 0 && (
+          <Box
+            bg="#1A1A2F"
+            p={4}
+            borderRadius="xl"
+            border="1px solid rgba(255, 255, 255, 0.1)"
+          >
+            <SimpleGrid columns={3} spacing={4}>
+              <Box textAlign="center">
+                <Text color="gray.400" fontSize="xs">
+                  Total Deposits
+                </Text>
+                <Text color="teal.300" fontSize="xl" fontWeight="bold">
+                  {allDepositsHistory.aggregateData.totalDeposits}
+                </Text>
+              </Box>
+              <Box textAlign="center">
+                <Text color="gray.400" fontSize="xs">
+                  Total Volume
+                </Text>
+                <Text color="teal.300" fontSize="xl" fontWeight="bold">
+                  {`${parseFloat(
+                    allDepositsHistory.aggregateData.totalVolume
+                  ).toFixed(8)}`}
+                </Text>
+                <Text color="gray.500" fontSize="xs">
+                  BTC
+                </Text>
+              </Box>
+              <Box textAlign="center">
+                <Text color="gray.400" fontSize="xs">
+                  Unique Users
+                </Text>
+                <Text color="teal.300" fontSize="xl" fontWeight="bold">
+                  {allDepositsHistory.aggregateData.uniqueUsers}
+                </Text>
+              </Box>
+            </SimpleGrid>
+          </Box>
+        )}
 
       {isLoading ? (
         <Flex justify="center" py={8}>
           <Spinner color="teal.300" size="lg" />
         </Flex>
-      ) : allDepositsHistory && allDepositsHistory.length > 0 ? (
+      ) : allDepositsHistory &&
+        allDepositsHistory.recentDeposits &&
+        allDepositsHistory.recentDeposits.length > 0 ? (
         <Box
           bg="#242731"
           borderRadius="xl"
@@ -220,7 +225,7 @@ const AllDeposits: React.FC<AllDepositsProps> = ({
               </Tr>
             </Thead>
             <Tbody>
-              {allDepositsHistory.map((deposit: Deposit) => (
+              {allDepositsHistory.recentDeposits.map((deposit: Deposit) => (
                 <Tr key={deposit.id}>
                   <Td borderColor="rgba(255, 255, 255, 0.1)" py={3}>
                     <Text color="white" fontSize="xs">
