@@ -10,6 +10,7 @@ const TokenSvg: React.FC<Props> = ({ token, width = 30, height = 30 }) => {
   // Define the SVG file paths for each token
   const tokenIconMap: { [key: string]: string } = {
     BTC: "/icons/BTC.svg",
+    STX: "/icons/STX.svg",
   };
 
   const TokenIcon = tokenIconMap[token];
