@@ -1,0 +1,48 @@
+// /Users/owner/alpha/frontend/frontend-fak/src/fak/entities/Token.ts
+export default interface Token {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string;
+  tokenContract: string;
+  dexContract: string;
+  txId: string | null;
+  targetAmm: string;
+  supply: number;
+  decimals: number;
+  targetStx: number;
+  progress: number;
+  price: number;
+  price24hChanges: number | null;
+  tradingVolume: number;
+  holders: number;
+  tokenToDex: string | null;
+  tokenToDeployer: string | null;
+  stxToDex: number | null;
+  stxBuyFirstFee: number | null;
+  logoUrl: string | null;
+  mediaUrl: string | null;
+  uri: string | null;
+  twitter: string | null;
+  website: string | null;
+  telegram: string | null;
+  discord: string | null;
+  chatCount: number;
+  txsCount: number;
+  creatorAddress: string;
+  deployedAt: string;
+  // tokenHash: string;
+  // tokenVerified: number;
+  // dexHash: string;
+  // dexVerified: number;
+  // tokenVerifiedAt: string | null;
+  // dexVerifiedAt: string | null;
+  status: string;
+  // tokenChainhookUuid: string | null;
+  volumeUsd: number;
+  marketCap: number;
+  denomination: string;
+  phase?: string;
+  preContract?: string;
+  preHash?: string;
+}

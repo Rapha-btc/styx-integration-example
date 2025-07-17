@@ -1,123 +1,96 @@
-// auth.tsx
-import { StacksNetwork } from "@stacks/network";
-import {
-  AppConfig,
-  UserSession,
-  showConnect,
-  openContractCall,
-  openContractDeploy,
-  openSTXTransfer,
-} from "@stacks/connect";
-import { getProvider } from "./getProvider";
+import { AppConfig, UserSession, connect } from "@stacks/connect";
 
-// Keep your existing configuration
 const appConfig = new AppConfig(["store_write", "publish_data"]);
 export const userSession = new UserSession({ appConfig });
 
-export const authenticate = () => {
-  const provider = getProvider(userSession);
-  showConnect(
-    {
-      appDetails: {
-        name: "faktory.fun",
-        icon: "/FF_logo256.png",
-      },
-      redirectTo: "/",
-      onFinish: async () => {
-        // Check if we're using Leather wallet with a Ledger device
-        // We'll detect this by checking the userData first
-        if (userSession.isUserSignedIn()) {
-          const userData = userSession.loadUserData();
+export const authenticate = async () => {
+  try {
+    console.log("=== AUTHENTICATION START ===");
+    console.log("Starting authentication...");
 
-          // Check if we're using Leather (no BTC address) and need to request it
-          const isLeather =
-            userData.profile.walletName?.toLowerCase()?.includes("leather") ||
-            (userData.profile.appsMeta &&
-              Object.keys(userData.profile.appsMeta).some((app) =>
-                app.toLowerCase().includes("leather")
-              ));
+    const existingAddresses = localStorage.getItem("addresses");
+    console.log("Existing addresses in localStorage:", existingAddresses);
 
-          const hasBtcAddress =
-            typeof userData.profile.btcAddress === "string" ||
-            userData.profile.btcAddress?.p2wpkh?.mainnet ||
-            userData.profile.btcAddress?.p2tr?.mainnet;
+    const isUserSessionSignedIn = userSession.isUserSignedIn();
+    console.log("UserSession isUserSignedIn:", isUserSessionSignedIn);
 
-          // If using Leather without BTC address, likely using Ledger
-          // Request BTC address explicitly before page reload
-          if (isLeather && !hasBtcAddress && window.LeatherProvider) {
-            console.log(
-              "Leather detected without BTC address, requesting BTC address..."
-            );
-            try {
-              // Request Bitcoin address immediately after Stacks auth
-              const btcResponse = await window.LeatherProvider.request(
-                "getAddresses",
-                {
-                  currencies: ["BTC"],
-                }
-              );
+    console.log("Available wallet providers:");
+    console.log("- Xverse:", !!(window as any).XverseProviders);
+    console.log("- Leather:", !!(window as any).LeatherProvider);
+    console.log("- Asigna:", !!(window as any).AsignaProvider);
+    console.log("- Stacks Connect:", typeof connect === "function");
 
-              console.log("BTC address response:", btcResponse);
+    console.log("Calling connect()...");
 
-              // We don't need to save the address here as it will be
-              // detected by the UserSessionContext on reload
-            } catch (error) {
-              console.error("Error requesting BTC address:", error);
-              // Still reload even if BTC request fails
-            }
+    const result = await connect();
+    console.log("=== CONNECTION RESULT ===");
+    console.log("Full result:", result);
+    console.log("Result type:", typeof result);
+    console.log("Result keys:", Object.keys(result || {}));
+
+    if (result && result.addresses) {
+      console.log("Addresses received:", result.addresses);
+      console.log("Number of addresses:", result.addresses.length);
+
+      result.addresses.forEach((addr: any, index: number) => {
+        console.log(`Address ${index}:`, addr);
+      });
+
+      localStorage.setItem("addresses", JSON.stringify(result.addresses));
+      console.log("Addresses stored in localStorage");
+
+      const storedAddresses = localStorage.getItem("addresses");
+      console.log("Verification - stored addresses:", storedAddresses);
+
+      const mainnetAddress = result.addresses[2]?.address;
+      console.log("Mainnet address (index 2):", mainnetAddress);
+
+      if (mainnetAddress) {
+        console.log("✅ Connected successfully to address:", mainnetAddress);
+        console.log("Reloading page to update UI...");
+        window.location.reload();
+      } else {
+        console.error("❌ No mainnet address found at index 2");
+        console.log("Available addresses:", result.addresses);
+
+        if (result.addresses.length > 0) {
+          const firstAddress = result.addresses[0]?.address;
+          console.log("Fallback: Using first available address:", firstAddress);
+          if (firstAddress) {
+            window.location.reload();
           }
         }
+      }
+    } else {
+      console.error("❌ No addresses in connection result");
+      console.log("Result structure:", result);
+    }
 
-        // Continue with normal page reload
-        window.location.reload();
-      },
-      userSession,
-    },
-    provider
-  );
-};
+    console.log("=== AUTHENTICATION END ===");
+  } catch (error) {
+    console.error("=== AUTHENTICATION ERROR ===");
+    console.error("Wallet connection failed:", error);
+    console.error("Error type:", typeof error);
+    console.error(
+      "Error message:",
+      error instanceof Error ? error.message : "Unknown error"
+    );
+    console.error(
+      "Error stack:",
+      error instanceof Error ? error.stack : "No stack trace"
+    );
 
-// Helper function to explicitly request BTC address from Leather wallet
-// Use this if the automatic detection fails
-export const requestLeatherBtcAddress = async () => {
-  if (!window.LeatherProvider) {
-    throw new Error("Leather provider not available");
-  }
-
-  try {
-    const response = await window.LeatherProvider.request("getAddresses", {
-      currencies: ["BTC"],
-    });
-
-    if (response?.result?.addresses) {
-      const btcAddressInfo = response.result.addresses.find(
-        (addr: { symbol: string; address?: string }) => addr.symbol === "BTC"
-      );
-
-      if (btcAddressInfo?.address) {
-        return btcAddressInfo.address;
+    if (error instanceof Error) {
+      if (
+        error.message.includes("User denied") ||
+        error.message.includes("cancelled")
+      ) {
+        console.log("User cancelled connection");
+      } else {
+        console.error("Actual connection error occurred");
       }
     }
 
-    throw new Error("Could not retrieve BTC address from response");
-  } catch (error) {
-    console.error("Error requesting BTC address from Leather:", error);
-    throw error;
+    console.error("=== ERROR END ===");
   }
-};
-
-// Update your contract call functions to use the provider
-export const contractCall = async (options: any) => {
-  const provider = getProvider(userSession);
-  return openContractCall({ ...options }, provider);
-};
-
-export const contractDeploy = async (options: any) => {
-  const provider = getProvider(userSession);
-  return openContractDeploy({ ...options }, provider);
-};
-
-export const stxTransfer = async (options: any) => {
-  const provider = getProvider(userSession);
-  return openSTXTransfer({ ...options }, provider);
 };

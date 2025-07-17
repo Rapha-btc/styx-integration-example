@@ -1,6 +1,7 @@
+// ConnectWallet.tsx - DAO with Asigna support
 import React, { useState } from "react";
 import { useUserSession } from "../context/UserSessionContext";
-import { authenticate, requestLeatherBtcAddress } from "./auth";
+import { authenticate } from "./auth";
 import {
   Button,
   ButtonProps,
@@ -22,10 +23,10 @@ import { useNavigate } from "react-router-dom";
 // Import wallet icons
 import leatherIcon from "../assets/Leather.jpg";
 import xverseIcon from "../assets/xverse.png";
+import asignaIcon from "../assets/asigna.jpg";
 
-// Define the ConnectWallet component props
 interface ConnectWalletProps extends ButtonProps {
-  walletProvider?: "leather" | "xverse";
+  walletProvider?: "leather" | "xverse" | "asigna";
   walletIconPath?: string;
   activeChain?: "bitcoin" | "stacks";
 }
@@ -42,7 +43,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     btcAddress,
     stxBalance,
     btcBalance,
-    sbtcBalance, // Using sBTC balance from context
+    sbtcBalance,
     userSession,
     activeWalletProvider,
   } = useUserSession();
@@ -51,143 +52,76 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
 
   const navigate = useNavigate();
 
-  // Replace redirect function
+  // PRESERVE: DAO deposit redirect
   const handleDepositRedirect = () => {
     navigate("/deposit");
   };
 
-  // In ConnectWallet.tsx - Updated handleClick with debugging
-
-  // In ConnectWallet.tsx
+  // SIMPLIFIED: Handle click with simple auth like memes
   const handleClick = async () => {
     if (!isSignedIn) {
-      // Not signed in, authenticate normally
+      // Not signed in, authenticate using Ross's simple approach
       authenticate();
-    } else if (!btcAddress) {
-      // Connected to Stacks but no BTC address - connect Bitcoin
-      try {
-        console.log("Requesting BTC address from Leather...");
-
-        // Request addresses through Leather API
-        if (window.LeatherProvider) {
-          const response = await window.LeatherProvider.request(
-            "getAddresses",
-            {
-              currencies: ["BTC"],
-            }
-          );
-
-          console.log("BTC address response:", response);
-
-          // If we got a successful response with a BTC address
-          if (response?.result?.addresses) {
-            const btcAddressInfo = response.result.addresses.find(
-              (addr: { symbol: string; address?: string }) =>
-                addr.symbol === "BTC"
-            );
-
-            if (btcAddressInfo?.address) {
-              console.log("Got BTC address:", btcAddressInfo.address);
-
-              // Store the BTC address in local storage so it persists
-              localStorage.setItem("btcAddress", btcAddressInfo.address);
-
-              // Force a page reload to update the UI
-              window.location.reload();
-              return;
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error connecting Bitcoin:", error);
-      }
     } else {
-      // Both Stacks and BTC connected - clicking should disconnect
+      // Already connected - clicking should disconnect (like Ross does)
       userSession.signUserOut();
-      localStorage.removeItem("btcAddress"); // Clear the stored BTC address
-      window.location.reload();
+      localStorage.removeItem("addresses"); // Clear Ross's addresses storage
     }
   };
 
-  // Format the BTC or sBTC balance to 8 decimal places
+  // PRESERVE: DAO balance formatting
   const formatBtcBalance = (balance: number | null): string => {
     if (balance === null) return "0.00000000";
     return balance.toFixed(8);
   };
 
-  // Get the appropriate address based on active chain and device
+  // UPDATED: DAO address display logic with Asigna support
   const getDisplayAddress = () => {
-    console.log("getDisplayAddress called with:", {
-      isSignedIn,
-      userAddress,
-      btcAddress,
-      bnsName,
-      activeChain,
-      isMobile,
-    });
-
     if (!isSignedIn) return "";
 
-    // Check if the bnsName is just the raw STX address (not a real BNS name)
-    const isBnsActuallyRawAddress =
+    // Check if BNS is valid (not just the raw STX address)
+    const hasValidBns =
       bnsName &&
-      userAddress &&
-      (bnsName === userAddress ||
-        bnsName.toLowerCase() === userAddress.toLowerCase());
+      bnsName !== userAddress &&
+      bnsName.toLowerCase() !== userAddress?.toLowerCase() &&
+      (bnsName.includes(".btc") || bnsName.includes(".id"));
 
-    // Only consider bnsName valid if it's a real .btc name (not the raw address)
-    const hasValidBns = bnsName && !isBnsActuallyRawAddress;
-
-    // Mobile behavior - only prioritize BNS if it's a real .btc name
+    // Mobile behavior
     if (isMobile) {
-      if (hasValidBns) {
-        console.log("Mobile view with valid BNS name, returning:", bnsName);
-        return bnsName;
-      }
-
-      if (btcAddress) {
-        console.log(
-          "Mobile view without valid BNS, returning BTC address:",
-          `${btcAddress.slice(0, 4)}...`
-        );
-        return `${btcAddress.slice(0, 4)}...`;
-      }
-
-      if (userAddress) {
-        return `${userAddress.slice(0, 4)}...`;
-      }
-
-      return "No Address"; // Fallback if no address is available
+      if (hasValidBns) return bnsName;
+      if (btcAddress) return `${btcAddress.slice(0, 4)}...`;
+      if (userAddress) return `${userAddress.slice(0, 4)}...`;
+      return "No Address";
     }
 
-    // Desktop behavior - respect active chain
+    // Desktop behavior - respect active chain but show BNS if available
     if (activeChain === "bitcoin") {
-      console.log("Desktop Bitcoin chain active");
-      console.log("BTC Address value:", btcAddress);
+      if (hasValidBns) return bnsName;
 
-      if (!btcAddress) {
-        console.log("No BTC address detected, showing Connect BTC");
-        return "Connect BTC";
+      // If BTC address exists, show it
+      if (btcAddress) {
+        return `${btcAddress.slice(0, 6)}...${btcAddress.slice(-4)}`;
       }
 
-      const displayAddress = `${btcAddress.slice(0, 6)}...${btcAddress.slice(
-        -4
-      )}`;
-      console.log("BTC address found, showing:", displayAddress);
-      return displayAddress;
+      // UPDATED: Fallback to STX address if no BTC (Asigna case)
+      if (userAddress) {
+        return `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+      }
+
+      return "Connect BTC";
     } else {
-      console.log("Desktop Stacks chain active");
       if (hasValidBns) return bnsName;
       if (!userAddress) return "No STX Address";
       return `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
     }
   };
 
+  // PRESERVE: DAO BNS handling
   const handleNameResolved = (name: string | null) => {
     setBnsName(name);
   };
 
-  // Get wallet icon
+  // UPDATED: DAO wallet icon logic with Asigna support (using memes pattern)
   const getWalletIcon = () => {
     if (walletIconPath) {
       return (
@@ -202,7 +136,33 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
       );
     }
 
-    // Return a fallback with the correct icon based on detected wallet provider
+    // Detect actual wallet used based on address pattern and extensions (SAME AS MEMES)
+    const isXverseDetected = !!(window as any).XverseProviders;
+    const isLeatherDetected = !!(window as any).LeatherProvider;
+    const isAsignaDetected = !!(window as any).AsignaProvider;
+
+    // Check if we're connected with Asigna (SM address or single address pattern)
+    const isAsignaConnection =
+      userAddress?.startsWith("SM") ||
+      (userAddress?.startsWith("SP") && !btcAddress && isAsignaDetected);
+
+    let detectedWallet = "leather"; // default
+
+    if (isAsignaConnection) {
+      detectedWallet = "asigna";
+    } else if (isXverseDetected && btcAddress) {
+      detectedWallet = "xverse";
+    } else if (isLeatherDetected) {
+      detectedWallet = "leather";
+    }
+
+    console.log("Wallet icon detection:", {
+      userAddress,
+      btcAddress,
+      isAsignaConnection,
+      detectedWallet,
+    });
+
     return (
       <Box
         width="20px"
@@ -213,8 +173,20 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
         justifyContent="center"
       >
         <Image
-          src={activeWalletProvider === "xverse" ? xverseIcon : leatherIcon}
-          alt={activeWalletProvider === "xverse" ? "Xverse" : "Leather"}
+          src={
+            detectedWallet === "asigna"
+              ? asignaIcon
+              : detectedWallet === "xverse"
+              ? xverseIcon
+              : leatherIcon
+          }
+          alt={
+            detectedWallet === "asigna"
+              ? "Asigna"
+              : detectedWallet === "xverse"
+              ? "Xverse"
+              : "Leather"
+          }
           width="100%"
           height="100%"
         />
@@ -222,7 +194,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     );
   };
 
-  // Get Bitcoin icon for balance display
+  // PRESERVE: DAO Bitcoin icon
   const getBitcoinIcon = () => (
     <Box
       width="24px"
@@ -248,13 +220,19 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     </Box>
   );
 
-  // Handle disconnect
+  // SIMPLIFIED: Handle disconnect like memes
   const handleDisconnect = () => {
+    // Clear SIP-30 addresses using Ross's key
+    localStorage.removeItem("addresses");
+
+    // Clear any manually stored BTC address
+    localStorage.removeItem("btcAddress");
+
+    // Clear old UserSession as well
     userSession.signUserOut();
-    window.location.reload();
   };
 
-  // Get the balance based on active chain
+  // PRESERVE: DAO balance logic
   const getBalance = () => {
     if (activeChain === "bitcoin") {
       return formatBtcBalance(btcBalance);
@@ -282,7 +260,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     );
   }
 
-  // Desktop view (unchanged)
+  // PRESERVE: DAO desktop view (two-button layout)
   if (!isMobile) {
     return (
       <>
@@ -336,7 +314,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
     );
   }
 
-  // Mobile view with dropdown
+  // PRESERVE: DAO mobile view with dropdown
   return (
     <>
       <Menu>
@@ -362,13 +340,12 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
         <MenuList
           bg="gray.900"
           borderColor="gray.700"
-          py={1} // Reduced from py={2}
-          px={2} // Add horizontal padding
+          py={1}
+          px={2}
           shadow="xl"
-          minW="auto" // This prevents extra width
-          mt={1} // Reduce margin between button and menu
+          minW="auto"
+          mt={1}
         >
-          {" "}
           {/* BTC Balance Item */}
           <MenuItem
             bg="gray.900"
@@ -390,6 +367,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
               </Box>
             </HStack>
           </MenuItem>
+
           {/* sBTC Balance Item */}
           <MenuItem
             bg="gray.900"
@@ -411,6 +389,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
               </Box>
             </HStack>
           </MenuItem>
+
           {/* Deposit Item */}
           <MenuItem
             onClick={handleDepositRedirect}
@@ -448,6 +427,7 @@ const ConnectWallet: React.FC<ConnectWalletProps> = ({
               </Text>
             </HStack>
           </MenuItem>
+
           {/* Disconnect Item */}
           <MenuItem
             onClick={handleDisconnect}

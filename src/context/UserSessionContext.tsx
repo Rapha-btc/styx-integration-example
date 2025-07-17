@@ -1,4 +1,4 @@
-// UserSessionContext.tsx
+// UserSessionContext.tsx - DAO updated with Asigna support
 import React, {
   createContext,
   useContext,
@@ -7,12 +7,12 @@ import React, {
   useCallback,
 } from "react";
 import { AppConfig, UserSession } from "@stacks/connect";
-import { stacksApiClient } from "../services/stacks-api-client"; // Import your API client
+import { stacksApiClient } from "../fak/services/stacks-api-client";
 
 const appConfig = new AppConfig(["store_write", "publish_data"]);
 const userSession = new UserSession({ appConfig });
 
-// sBTC contract info
+// sBTC contract info - MAINNET ONLY (no testnet)
 const SBTC_CONTRACT_ADDRESS = "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4";
 const SBTC_CONTRACT_NAME = "sbtc-token";
 const SBTC_TOKEN_NAME = "sbtc-token";
@@ -25,7 +25,7 @@ interface UserSessionContextType {
   stxBalance: number | null;
   btcBalance: number | null;
   sbtcBalance: number | null;
-  activeWalletProvider: "leather" | "xverse" | null;
+  activeWalletProvider: "leather" | "xverse" | "asigna" | null;
   refreshBalances: () => void;
   setIsSignedIn: (value: boolean) => void;
 }
@@ -51,22 +51,19 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
   const [btcAddress, setBtcAddress] = useState<string | null>(null);
   const [stxBalance, setStxBalance] = useState<number | null>(null);
   const [btcBalance, setBtcBalance] = useState<number | null>(null);
-  const [sbtcBalance, setSbtcBalance] = useState<number | null>(null); // Added sBTC balance state
+  const [sbtcBalance, setSbtcBalance] = useState<number | null>(null);
   const [activeWalletProvider, setActiveWalletProvider] = useState<
-    "leather" | "xverse" | null
+    "leather" | "xverse" | "asigna" | null
   >(null);
-  const [isBalancesLoading, setIsBalancesLoading] = useState(false);
 
-  // Function to fetch balances
+  // PRESERVE: Your existing balance fetching logic
   const fetchBalances = useCallback(async () => {
     if (!isSignedIn) return;
-
-    setIsBalancesLoading(true);
 
     // Fetch STX and sBTC balances using your API client
     if (userAddress) {
       try {
-        // Get all balances for the address
+        // Get all balances for the address (MAINNET ONLY)
         const balanceData = await stacksApiClient.getAddressBalance(
           userAddress
         );
@@ -84,17 +81,16 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
           const sbtcMicroBalance = parseInt(
             balanceData.fungible_tokens[sbtcContract].balance
           );
-          setSbtcBalance(sbtcMicroBalance / 100000000); // Convert to sBTC (assuming 8 decimal places)
+          setSbtcBalance(sbtcMicroBalance / 100000000);
         } else {
           setSbtcBalance(0);
         }
       } catch (error) {
         console.error("Error fetching STX/sBTC balances:", error);
-        // Don't reset the balances on error to avoid UI flicker
       }
     }
 
-    // Fetch BTC balance
+    // Fetch BTC balance (MAINNET ONLY)
     if (btcAddress) {
       try {
         const blockstreamUrl = `https://blockstream.info/api/address/${btcAddress}/utxo`;
@@ -109,90 +105,100 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
           (sum: number, utxo: any) => sum + utxo.value,
           0
         );
-        setBtcBalance(totalSats / 100000000); // Convert satoshis to BTC
+        setBtcBalance(totalSats / 100000000);
       } catch (error) {
         console.error("Error fetching BTC balance:", error);
-        // Don't reset the balance on error to avoid UI flicker
       }
     }
-
-    setIsBalancesLoading(false);
   }, [isSignedIn, userAddress, btcAddress]);
 
-  // Manual refresh function
+  // PRESERVE: Manual refresh function
   const refreshBalances = useCallback(() => {
     if (isSignedIn && (userAddress || btcAddress)) {
       fetchBalances();
     }
   }, [isSignedIn, userAddress, btcAddress, fetchBalances]);
 
-  // Check sign-in status frequently
+  // UPDATED: Check sign-in with Asigna support
   useEffect(() => {
     const checkSignIn = () => {
-      const signedIn = userSession.isUserSignedIn();
+      try {
+        // Simple check - just look for addresses array
+        const addresses = JSON.parse(localStorage.getItem("addresses") || "[]");
 
-      if (signedIn !== isSignedIn) {
-        setIsSignedIn(signedIn);
-      }
+        if (addresses.length) {
+          // User is signed in
+          if (!isSignedIn) {
+            setIsSignedIn(true);
+          }
 
-      if (signedIn) {
-        const userData = userSession.loadUserData();
-        const stxAddr = userData.profile.stxAddress.mainnet;
+          // UPDATED: Support both regular DAO pattern and Asigna pattern
+          let mainnetAddress;
 
-        // Only update if changed
-        if (stxAddr !== userAddress) {
-          setUserAddress(stxAddr);
-        }
+          if (addresses.length === 1) {
+            // Single address = Asigna pattern (SM or SP address)
+            const singleAddress = addresses[0]?.address;
+            if (
+              singleAddress &&
+              (singleAddress.startsWith("SP") || singleAddress.startsWith("SM"))
+            ) {
+              mainnetAddress = singleAddress;
+            }
+          } else {
+            // Multiple addresses = DAO pattern (find SP address or use index 2)
+            mainnetAddress =
+              addresses.find((addr: any) => addr.address?.startsWith("SP"))
+                ?.address || addresses[2]?.address;
+          }
 
-        // Detect wallet type and get BTC address based on structure
-        // Detect wallet type and get BTC address based on structure
-        let btcAddr = null;
-        let detectedWalletProvider: "xverse" | "leather" | null = null;
+          if (mainnetAddress && mainnetAddress !== userAddress) {
+            setUserAddress(mainnetAddress);
+          }
 
-        // Check structure of btcAddress to determine wallet type
-        if (typeof userData.profile.btcAddress === "string") {
-          // Xverse stores btcAddress as a direct string
-          btcAddr = userData.profile.btcAddress;
-          detectedWalletProvider = "xverse";
-        } else if (
-          userData.profile.btcAddress?.p2wpkh?.mainnet ||
-          userData.profile.btcAddress?.p2tr?.mainnet
-        ) {
-          // Leather stores addresses in a structured object
-          btcAddr =
-            userData.profile.btcAddress?.p2wpkh?.mainnet ||
-            userData.profile.btcAddress?.p2tr?.mainnet;
-          detectedWalletProvider = "leather";
+          // Find BTC address
+          const btcAddr = addresses.find(
+            (addr: any) =>
+              addr.address &&
+              (addr.address.startsWith("bc1") ||
+                addr.address.startsWith("3") ||
+                addr.address.startsWith("1"))
+          )?.address;
+
+          if (btcAddr && btcAddr !== btcAddress) {
+            setBtcAddress(btcAddr);
+          }
+
+          // UPDATED: Wallet detection with Asigna support
+          let detectedProvider: "leather" | "xverse" | "asigna" = "leather";
+
+          if (addresses.length === 1) {
+            // Single address = Asigna
+            detectedProvider = "asigna";
+          } else if (addresses.length <= 3 && btcAddr) {
+            // Multiple addresses but small count + BTC = Xverse
+            detectedProvider = "xverse";
+          } else {
+            // Default = Leather
+            detectedProvider = "leather";
+          }
+
+          if (detectedProvider !== activeWalletProvider) {
+            setActiveWalletProvider(detectedProvider);
+          }
         } else {
-          // If no BTC address in profile, check localStorage
-          const storedBtcAddress = localStorage.getItem("btcAddress");
-          if (storedBtcAddress) {
-            console.log("Found BTC address in localStorage:", storedBtcAddress);
-            btcAddr = storedBtcAddress;
-            detectedWalletProvider = "leather"; // Assume Leather if using localStorage
+          // No addresses - user is not signed in
+          if (isSignedIn) {
+            setIsSignedIn(false);
+            setUserAddress(null);
+            setBtcAddress(null);
+            setStxBalance(null);
+            setBtcBalance(null);
+            setSbtcBalance(null);
+            setActiveWalletProvider(null);
           }
         }
-
-        // Update the btcAddress state if it changed
-        if (btcAddr !== btcAddress) {
-          setBtcAddress(btcAddr);
-        }
-
-        // Add this right after loading user data
-        console.log("User data profile:", userData.profile);
-        console.log("BTC address in profile:", userData.profile.btcAddress);
-
-        // Update the wallet provider if needed
-        if (detectedWalletProvider !== activeWalletProvider) {
-          setActiveWalletProvider(detectedWalletProvider);
-        }
-      } else if (isSignedIn) {
-        // User logged out
-        setUserAddress(null);
-        setBtcAddress(null);
-        setStxBalance(null);
-        setBtcBalance(null);
-        setSbtcBalance(null); // Reset sBTC balance on logout
+      } catch (error) {
+        console.error("Error checking wallet state:", error);
       }
     };
 
@@ -200,16 +206,14 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
     const signInCheckInterval = setInterval(checkSignIn, 1000);
 
     return () => clearInterval(signInCheckInterval);
-  }, [isSignedIn, userAddress, btcAddress]);
+  }, [isSignedIn, userAddress, btcAddress, activeWalletProvider]);
 
-  // Fetch balances when addresses change and then once every minute
+  // PRESERVE: Balance fetching timer
   useEffect(() => {
-    // Initial fetch when user signs in or addresses change
     if (isSignedIn && (userAddress || btcAddress)) {
       fetchBalances();
     }
 
-    // Set up a timer to refresh every minute
     const balanceTimer = setInterval(() => {
       if (isSignedIn && (userAddress || btcAddress)) {
         fetchBalances();
