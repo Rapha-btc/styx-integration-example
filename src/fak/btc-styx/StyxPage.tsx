@@ -1,6 +1,5 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { Box, Flex, Text } from "@chakra-ui/react";
 import SimplifiedTradStyx from "./SimplifiedTabStyx"; // Import the real component
 
 const MinimalTradStyxPage = () => {
@@ -126,70 +125,16 @@ const MinimalTradStyxPage = () => {
       deploymentHeight: rawTokenData.deployment_height,
       lastAirdropHeight: rawTokenData.last_airdrop_height,
       accumulatedFees: rawTokenData.accumulated_fees,
+      // Add missing properties to fix TypeScript error
+      volumeUsd: rawTokenData.trading_volume * 110000, // trading_volume * btcUsdPrice
+      marketCap: rawTokenData.supply * rawTokenData.price * 110000, // supply * price * btcUsdPrice
     };
   };
 
   const token = getTokenData(id!);
 
-  // Handle case where token is not found
-  if (!token) {
-    return (
-      <Flex
-        minHeight="100vh"
-        bg="gray.900"
-        color="white"
-        direction="column"
-        align="center"
-        justify="center"
-        p={4}
-      >
-        <Text fontSize="xl" mb={4}>
-          Token not found
-        </Text>
-        <Text fontSize="sm" color="gray.400">
-          No token found for DEX contract: {id}
-        </Text>
-      </Flex>
-    );
-  }
-
-  return (
-    <Flex
-      minHeight="100vh"
-      bg="gray.900"
-      color="white"
-      direction="column"
-      align="center"
-      justify="center"
-      p={4}
-    >
-      <Box mb={6}>
-        <Text fontSize="2xl" fontWeight="bold" textAlign="center" mb={2}>
-          Buy {token.symbol}
-        </Text>
-        <Text fontSize="md" color="gray.400" textAlign="center">
-          {token.description}
-        </Text>
-        <Text fontSize="sm" color="gray.500" textAlign="center" mt={2}>
-          DEX Contract: {id}
-        </Text>
-      </Box>
-
-      {/* This is the actual trading widget - no longer a mock */}
-      <Box maxWidth="400px" width="100%">
-        <SimplifiedTradStyx token={token} />
-      </Box>
-
-      <Box mt={6} textAlign="center">
-        <Text fontSize="sm" color="gray.500">
-          Deployed: {new Date(token.deployedAt).toLocaleDateString()}
-        </Text>
-        <Text fontSize="sm" color="gray.500">
-          Phase: {token.phase} | Status: {token.status}
-        </Text>
-      </Box>
-    </Flex>
-  );
+  // Just return the widget with minimal styling
+  return <SimplifiedTradStyx token={token} />;
 };
 
 export default MinimalTradStyxPage;

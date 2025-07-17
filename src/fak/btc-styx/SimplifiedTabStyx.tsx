@@ -105,7 +105,11 @@ interface SimplifiedTradStyxProps {
 
 const BYPASS_VERIFICATION_TOKENS = ["BEAST1"];
 
-const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({ token }) => {
+const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
+  token,
+}: {
+  token: any;
+}) => {
   const [activeTab, setActiveTab] = useState(0);
   const {
     userAddress,
