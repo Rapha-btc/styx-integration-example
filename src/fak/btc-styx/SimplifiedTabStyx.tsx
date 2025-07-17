@@ -65,8 +65,8 @@ import {
   stacksApiClient,
   ReadOnlyFunctionSuccessResponse,
 } from "../services/stacks-api-client";
-import { usePriceSTX } from "../hooks/usePriceSTX";
-import { usePriceBTC } from "../hooks/usePriceBTC";
+// import { usePriceSTX } from "../hooks/usePriceSTX";
+// import { usePriceBTC } from "../hooks/usePriceBTC";
 import { ExternalLinkIcon } from "@chakra-ui/icons";
 import { keyframes } from "@emotion/react";
 import { styxSDK } from "@faktoryfun/styx-sdk";
@@ -149,8 +149,11 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({ token }) => {
     queryFn: () => stacksApiClient.getAddressBalance(userAddress!),
     enabled: !!userAddress,
   });
-  const { price: stxUsdPrice } = usePriceSTX();
-  const { price: btcUsdPrice } = usePriceBTC();
+  // const { price: stxUsdPrice } = usePriceSTX();
+  // const { price: btcUsdPrice } = usePriceBTC();
+  const stxUsdPrice = 0.8;
+  const btcUsdPrice = 110000;
+
   const currentPrice = token.denomination === "btc" ? btcUsdPrice : stxUsdPrice;
   const SBTC_CONTRACT = "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token";
   // Add these state variables inside SimplifiedTradStyx
