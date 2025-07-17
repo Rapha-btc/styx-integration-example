@@ -133,8 +133,27 @@ const MinimalTradStyxPage = () => {
 
   const token = getTokenData(id!);
 
-  // Just return the widget with minimal styling
-  return <SimplifiedTradStyx token={token} />;
+  // Just return the widget with proper centering and constrained height
+  return (
+    <div
+      style={{
+        paddingTop: "120px",
+        display: "flex",
+        justifyContent: "center",
+        minHeight: "calc(100vh - 120px)",
+        alignItems: "flex-start",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "400px",
+          width: "100%",
+        }}
+      >
+        <SimplifiedTradStyx token={token} />
+      </div>
+    </div>
+  );
 };
 
 export default MinimalTradStyxPage;
