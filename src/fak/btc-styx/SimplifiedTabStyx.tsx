@@ -54,6 +54,7 @@ import {
   cvToJSON,
   bufferCV,
   someCV,
+  cvToHex,
 } from "@stacks/transactions";
 import Token from "../entities/Token";
 import TokenSvg from "../../utils/TokenSvg";
@@ -103,7 +104,7 @@ interface SimplifiedTradStyxProps {
   token: Token;
 }
 
-const BYPASS_VERIFICATION_TOKENS = ["BEAST1"];
+const BYPASS_VERIFICATION_TOKENS = ["BEAST2", "beast2"];
 
 const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
   token,
@@ -123,7 +124,7 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
   } = useUserSession();
   const toast = useToast();
   const [stxAmount, setStxAmount] = useState<string>(
-    token.denomination === "btc" ? "0.0002" : "20"
+    token.denomination === "btc" ? "0.0001" : "20"
   );
   const [tokenAmount, setTokenAmount] = useState<string>("0");
   const [userStxBalance, setUserStxBalance] = useState(0);
@@ -196,12 +197,12 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
       setIsLoadingQuote(true);
       getBuyQuote(stxAmount)
         .then((response) => {
-          // ADD: Debug the response in the effect
+          console.log("getBuyQuote response:", response);
           setBuyQuote(response);
           setIsLoadingQuote(false);
         })
         .catch((error) => {
-          // ADD: Debug error in effect
+          console.log("No buy quote available, fetching fresh quote...");
           console.log("[DEBUG] effect - getBuyQuote error:", error);
           setIsLoadingQuote(false);
         });
@@ -213,14 +214,25 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
 
   useEffect(() => {
     if (balances) {
-      setUserStxBalance(parseInt(balances.stx.balance));
+      // Add null checking for STX balance
+      if (balances.stx && balances.stx.balance) {
+        setUserStxBalance(parseInt(balances.stx.balance));
+      } else {
+        console.warn("STX balance not found in response:", balances);
+        setUserStxBalance(0);
+      }
 
-      // Set token balance
+      // Set token balance with null checking
       const assetName = getTokenAssetName(token.symbol);
       const tokenKey = `${token.tokenContract}::${assetName}`;
 
-      const tokenBalance = balances.fungible_tokens[tokenKey]?.balance || "0";
-      setUserTokenBalance(parseInt(tokenBalance));
+      if (balances.fungible_tokens && balances.fungible_tokens[tokenKey]) {
+        const tokenBalance = balances.fungible_tokens[tokenKey].balance || "0";
+        setUserTokenBalance(parseInt(tokenBalance));
+      } else {
+        console.warn("Token balance not found for key:", tokenKey);
+        setUserTokenBalance(0);
+      }
     }
   }, [balances, token.tokenContract, token.symbol, token.denomination]);
 
@@ -291,23 +303,35 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
 
   const getBuyQuote = async (amount: string) => {
     try {
-      // Always use get-in for both BTC and sBTC cases since token.denomination is always "btc"
-      const btcAmount = Math.floor(parseFloat(amount) * Math.pow(10, 8)); // Convert to satoshis
+      const btcAmount = Math.floor(parseFloat(amount) * Math.pow(10, 8));
+      console.log("Calling getBuyQuote with btcAmount:", btcAmount);
 
-      return stacksApiClient.callReadOnly({
-        contractAddress,
-        contractName,
-        functionName: "get-in",
-        functionArgs: [btcAmount],
-        senderAddress: userAddress || undefined,
+      // Direct Hiro API call with proper Clarity encoding
+      const url = `https://api.hiro.so/v2/contracts/call-read/${contractAddress}/${contractName}/get-in?tip=latest`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: userAddress || "SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS",
+          arguments: [cvToHex(uintCV(btcAmount))], // ← Proper Clarity uint encoding
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("getBuyQuote Hiro response:", data);
+      return data;
     } catch (error: any) {
       console.error("[DEBUG] Error in getBuyQuote:", error);
       return null;
     }
   };
-
-  // DELETE entire getSellQuote function and REPLACE with:
   const getSellQuote = async (amount: string) => {
     try {
       const parsedAmount = parseFloat(amount);
@@ -315,40 +339,51 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
         return null;
       }
 
-      // Always use get-out for sell quotes - use 100% for precision
       const quoteAmount = Math.floor(
         parsedAmount * Math.pow(10, token.decimals)
       );
-
       if (quoteAmount <= 0) {
         return null;
       }
 
-      return stacksApiClient.callReadOnly({
-        contractAddress,
-        contractName,
-        functionName: "get-out",
-        functionArgs: [quoteAmount],
-        senderAddress: userAddress || undefined,
+      const response = await fetch("/api/stacks/call-read", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contractAddress,
+          contractName,
+          functionName: "get-out",
+          sender: userAddress || "SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS",
+          arguments: [quoteAmount],
+        }),
       });
+
+      return await response.json();
     } catch (error) {
       console.error("Error getting sell quote:", error);
       return null;
     }
   };
 
-  // ADD these logs in the getSellQuote function to see more detailed info about the calculation
-
-  // delete this rafico?
   const getStxToGrad = async () => {
     try {
-      return stacksApiClient.callReadOnly({
-        contractAddress,
-        contractName,
-        functionName: "get-in",
-        functionArgs: [1_000_000],
-        senderAddress: userAddress || undefined,
+      const response = await fetch("/api/stacks/call-read", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contractAddress,
+          contractName,
+          functionName: "get-in",
+          sender: userAddress || "SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS",
+          arguments: [1_000_000],
+        }),
       });
+
+      return await response.json();
     } catch (error) {
       console.error("Error getting stx to grad:", error);
       return null;
@@ -415,6 +450,7 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
       token.status !== "completed" &&
       !BYPASS_VERIFICATION_TOKENS.includes(token.symbol)
     ) {
+      console.log("token status", token.status, token.symbol);
       toast({
         title: "Token not completed",
         description:
@@ -760,25 +796,43 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
 
         let minTokenOut = 0;
         let swapType = "sbtc"; // aibtc
+        console.log("=== BUY QUOTE DEBUG ===");
+        console.log("buyQuote exists:", !!buyQuote);
+        console.log("buyQuote.result:", buyQuote?.result);
+
         if (buyQuote?.result) {
           try {
             const clarityValue = hexToCV(buyQuote.result);
             const jsonValue = cvToJSON(clarityValue);
+            console.log("Parsed jsonValue:", jsonValue);
+            console.log("jsonValue.success:", jsonValue.success);
+            console.log("jsonValue.value:", jsonValue.value);
 
-            // Use same key as renderBuyQuote function
-            if (jsonValue.success && jsonValue.value?.value?.["tokens-out"]) {
-              const rawAmount = jsonValue.value.value["tokens-out"].value;
+            if (jsonValue.value?.value) {
+              console.log(
+                "Available keys:",
+                Object.keys(jsonValue.value.value)
+              );
+              console.log(
+                "tokens-out value:",
+                jsonValue.value.value["tokens-out"]
+              );
 
-              // Apply slippage protection
-              const slippageFactor = 1 - currentSlippage / 100;
-              minTokenOut = Math.floor(Number(rawAmount) * slippageFactor);
-              console.log("Min token out calculated:", minTokenOut);
+              // ADD THIS PART - the actual logic to set minTokenOut:
+              if (jsonValue.success && jsonValue.value?.value?.["tokens-out"]) {
+                const rawAmount = jsonValue.value.value["tokens-out"].value;
+                console.log("Raw amount from quote:", rawAmount);
+                console.log("Raw amount type:", typeof rawAmount);
+
+                // Apply slippage protection
+                const slippageFactor = 1 - currentSlippage / 100;
+                console.log("Slippage factor:", slippageFactor);
+                minTokenOut = Math.floor(Number(rawAmount) * slippageFactor);
+                console.log("Min token out calculated:", minTokenOut);
+              }
             }
           } catch (error) {
-            console.error(
-              "Error parsing buy quote for min token amount:",
-              error
-            );
+            console.error("Error parsing buy quote:", error);
           }
         }
 
@@ -792,7 +846,10 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
           feeRates: currentFeeRates,
           minTokenOut: minTokenOut,
           swapType: swapType as "aibtc" | "sbtc",
-          dexContract: token.dexContract,
+          poolId: "aibtc",
+          dexId: 1,
+          aiAccountReceiver:
+            "SP16PP6EYRCB7NCTGWAC73DH5X0KXWAPEQ8RKWAKS.no-ai-account-2",
         });
         console.log("Transaction prepared:", transactionData);
 
@@ -815,7 +872,7 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
           stxAddress: userAddress,
           opReturnHex: transactionData.opReturnData,
           minTokenOut: minTokenOut,
-          swapType: "sbtc", // aibtc
+          swapType: "aibtc", // aibtc
         });
 
         // Fill progress bar to 100% when done
@@ -908,13 +965,15 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
         // Create deposit record which will update pool status (reduce estimated available)
         const depositId = await styxSDK.createDeposit({
           btcAmount: parseFloat(confirmationData.depositAmount),
-          stxReceiver: userAddress || "",
+          stxReceiver: userAddress || "", // User's address (for filtering)
           btcSender: btcAddress || "",
           isBlaze: false,
-          swapType: "sbtc", // aibtc
+          swapType: "aibtc", // aibtc
           minTokenOut: confirmationData.minTokenOut,
           poolId: "aibtc",
-          dexContract: token.dexContract,
+          dexId: 1,
+          aiAccountReceiver:
+            "SP16PP6EYRCB7NCTGWAC73DH5X0KXWAPEQ8RKWAKS.no-ai-account-2",
         });
         console.log("Create deposit depositId:", depositId);
 
@@ -968,7 +1027,9 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
             minTokenOut: confirmationData.minTokenOut || 0,
             swapType: (confirmationData.swapType as "sbtc" | "aibtc") || "sbtc",
             poolId: "aibtc",
-            dexContract: token.dexContract,
+            dexId: 1,
+            aiAccountReceiver:
+              "SP16PP6EYRCB7NCTGWAC73DH5X0KXWAPEQ8RKWAKS.no-ai-account-2",
           });
 
           // Execute transaction with SDK
@@ -1123,7 +1184,7 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
             // Leather wallet flow
             const requestParams = {
               hex: finalTxPsbtHex,
-              network: "mainnet",
+              network: "mainnet", // "RegtestAiBtc",
               broadcast: false,
               allowedSighash: [btc.SigHash.ALL],
               allowUnknownOutputs: true,
@@ -1161,7 +1222,7 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
 
             // Manually broadcast the transaction
             const broadcastResponse = await fetch(
-              "https://mempool.space/api/tx",
+              "https://mempool.space/api/tx", // "https://mempool.bitcoin.regtest.hiro.so/api/v1/tx",
               {
                 method: "POST",
                 headers: {

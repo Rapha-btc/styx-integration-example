@@ -12,13 +12,13 @@ const MinimalTradStyxPage = () => {
     const rawTokenData = {
       id: "312",
       name: "ai sbtc",
-      symbol: "BEAST1",
+      symbol: "BEAST2",
       description: "totally with you David. Love you. RIP < 3",
       token_contract:
-        "SP331D6T77PNS2YZXR03CDC4G3XN0SYBPV69D8JW5.beast1-faktory",
+        "SP2HH7PR5SENEXCGDHSHGS5RFPMACEDRN5E4R0JRM.beast2-faktory",
       dex_contract:
         dexContract ||
-        "SP331D6T77PNS2YZXR03CDC4G3XN0SYBPV69D8JW5.beast1-faktory-dex",
+        "SP2HH7PR5SENEXCGDHSHGS5RFPMACEDRN5E4R0JRM.beast2-faktory-dex",
       target_amm: "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR",
       supply: 1000000000,
       decimals: 8,
@@ -60,7 +60,7 @@ const MinimalTradStyxPage = () => {
       tweet_origin: "1883607431143723149",
       denomination: "btc",
       pre_contract:
-        "SP331D6T77PNS2YZXR03CDC4G3XN0SYBPV69D8JW5.beast1-pre-faktory",
+        "SP331D6T77PNS2YZXR03CDC4G3XN0SYBPV69D8JW5.beast2-pre-faktory",
       pre_hash:
         "0b0377edbb02ee2cbd3b63dd9d2d72dc6fd24692116b9af770f47f7c1b2187ec",
       pre_verified: 1,
