@@ -1,4 +1,4 @@
-// UserSessionContext.tsx - DAO updated with Asigna support
+// UserSessionContext.tsx - Updated with network support
 import React, {
   createContext,
   useContext,
@@ -8,14 +8,42 @@ import React, {
 } from "react";
 import { AppConfig, UserSession } from "@stacks/connect";
 import { stacksApiClient } from "../fak/services/stacks-api-client";
+import {
+  getCurrentNetworkConfig,
+  isBitcoinAddress,
+  NETWORK,
+} from "../stxConnect/network";
+
+// Define address interface for better type safety
+interface WalletAddress {
+  address: string;
+  publicKey?: string;
+  [key: string]: any;
+}
 
 const appConfig = new AppConfig(["store_write", "publish_data"]);
 const userSession = new UserSession({ appConfig });
 
-// sBTC contract info - MAINNET ONLY (no testnet)
-const SBTC_CONTRACT_ADDRESS = "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4";
-const SBTC_CONTRACT_NAME = "sbtc-token";
-const SBTC_TOKEN_NAME = "sbtc-token";
+// sBTC contract info - adjust based on network
+const SBTC_CONTRACTS = {
+  mainnet: {
+    address: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4",
+    name: "sbtc-token",
+    tokenName: "sbtc-token",
+  },
+  testnet: {
+    address: "STV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RJ5XDY2", // Replace with actual testnet contract
+    name: "sbtc-token",
+    tokenName: "sbtc-token",
+  },
+  regtest: {
+    address: "STV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RJ5XDY2", // Replace with actual regtest contract
+    name: "sbtc-token",
+    tokenName: "sbtc-token",
+  },
+};
+
+const SBTC_CONTRACT = SBTC_CONTRACTS[NETWORK];
 
 interface UserSessionContextType {
   userSession: UserSession;
@@ -56,14 +84,12 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
     "leather" | "xverse" | "asigna" | null
   >(null);
 
-  // PRESERVE: Your existing balance fetching logic
   const fetchBalances = useCallback(async () => {
     if (!isSignedIn) return;
 
-    // Fetch STX and sBTC balances using your API client
+    // Fetch STX and sBTC balances
     if (userAddress) {
       try {
-        // Get all balances for the address (MAINNET ONLY)
         const balanceData = await stacksApiClient.getAddressBalance(
           userAddress
         );
@@ -73,7 +99,7 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
         setStxBalance(microStx / 1000000);
 
         // Set sBTC balance if available
-        const sbtcContract = `${SBTC_CONTRACT_ADDRESS}.${SBTC_CONTRACT_NAME}::${SBTC_TOKEN_NAME}`;
+        const sbtcContract = `${SBTC_CONTRACT.address}.${SBTC_CONTRACT.name}::${SBTC_CONTRACT.tokenName}`;
         if (
           balanceData.fungible_tokens &&
           balanceData.fungible_tokens[sbtcContract]
@@ -90,11 +116,14 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
 
-    // Fetch BTC balance (MAINNET ONLY)
+    // Fetch BTC balance using network-appropriate API
     if (btcAddress) {
       try {
-        const blockstreamUrl = `https://blockstream.info/api/address/${btcAddress}/utxo`;
-        const response = await fetch(blockstreamUrl);
+        const config = getCurrentNetworkConfig();
+        const apiUrl = `${config.blockstreamUrl}/address/${btcAddress}/utxo`;
+
+        console.log(`Fetching BTC balance from: ${apiUrl}`);
+        const response = await fetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -106,37 +135,37 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
           0
         );
         setBtcBalance(totalSats / 100000000);
+        console.log(`BTC balance fetched: ${totalSats / 100000000} BTC`);
       } catch (error) {
         console.error("Error fetching BTC balance:", error);
+        setBtcBalance(0);
       }
     }
   }, [isSignedIn, userAddress, btcAddress]);
 
-  // PRESERVE: Manual refresh function
   const refreshBalances = useCallback(() => {
     if (isSignedIn && (userAddress || btcAddress)) {
       fetchBalances();
     }
   }, [isSignedIn, userAddress, btcAddress, fetchBalances]);
 
-  // UPDATED: Check sign-in with Asigna support
+  // Check sign-in with network-aware address detection
   useEffect(() => {
     const checkSignIn = () => {
       try {
-        // Simple check - just look for addresses array
-        const addresses = JSON.parse(localStorage.getItem("addresses") || "[]");
+        const addresses: WalletAddress[] = JSON.parse(
+          localStorage.getItem("addresses") || "[]"
+        );
 
         if (addresses.length) {
-          // User is signed in
           if (!isSignedIn) {
             setIsSignedIn(true);
           }
 
-          // UPDATED: Support both regular DAO pattern and Asigna pattern
+          // Find STX address (SP/SM prefixes work across networks)
           let mainnetAddress;
-
           if (addresses.length === 1) {
-            // Single address = Asigna pattern (SM or SP address)
+            // Single address = Asigna pattern
             const singleAddress = addresses[0]?.address;
             if (
               singleAddress &&
@@ -145,40 +174,50 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
               mainnetAddress = singleAddress;
             }
           } else {
-            // Multiple addresses = DAO pattern (find SP address or use index 2)
+            // Multiple addresses = find STX address
             mainnetAddress =
-              addresses.find((addr: any) => addr.address?.startsWith("SP"))
-                ?.address || addresses[2]?.address;
+              addresses.find(
+                (addr: WalletAddress) =>
+                  addr.address?.startsWith("SP") ||
+                  addr.address?.startsWith("SM")
+              )?.address || addresses[2]?.address;
           }
 
           if (mainnetAddress && mainnetAddress !== userAddress) {
+            console.log(`Setting STX address: ${mainnetAddress}`);
             setUserAddress(mainnetAddress);
           }
 
-          // Find BTC address
+          // Find BTC address using network-aware detection
           const btcAddr = addresses.find(
-            (addr: any) =>
-              addr.address &&
-              (addr.address.startsWith("bc1") ||
-                addr.address.startsWith("3") ||
-                addr.address.startsWith("1"))
+            (addr: WalletAddress) =>
+              addr.address && isBitcoinAddress(addr.address)
           )?.address;
 
           if (btcAddr && btcAddr !== btcAddress) {
+            console.log(
+              `Setting BTC address: ${btcAddr} (network: ${NETWORK})`
+            );
             setBtcAddress(btcAddr);
+          } else if (!btcAddr) {
+            console.log("No Bitcoin address found for network:", NETWORK);
+            console.log(
+              "Available addresses:",
+              addresses.map((a: WalletAddress) => a.address)
+            );
+            console.log(
+              "Looking for prefixes:",
+              getCurrentNetworkConfig().btcPrefixes
+            );
           }
 
-          // UPDATED: Wallet detection with Asigna support
+          // Wallet detection logic remains the same
           let detectedProvider: "leather" | "xverse" | "asigna" = "leather";
-
           if (addresses.length === 1) {
-            // Single address = Asigna
             detectedProvider = "asigna";
           } else if (addresses.length <= 3 && btcAddr) {
-            // Multiple addresses but small count + BTC = Xverse
             detectedProvider = "xverse";
           } else {
-            // Default = Leather
             detectedProvider = "leather";
           }
 
@@ -208,7 +247,7 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(signInCheckInterval);
   }, [isSignedIn, userAddress, btcAddress, activeWalletProvider]);
 
-  // PRESERVE: Balance fetching timer
+  // Balance fetching timer
   useEffect(() => {
     if (isSignedIn && (userAddress || btcAddress)) {
       fetchBalances();
@@ -218,7 +257,7 @@ export const UserSessionProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isSignedIn && (userAddress || btcAddress)) {
         fetchBalances();
       }
-    }, 60000); // 60000ms = 1 minute
+    }, 60000);
 
     return () => clearInterval(balanceTimer);
   }, [isSignedIn, userAddress, btcAddress, fetchBalances]);
