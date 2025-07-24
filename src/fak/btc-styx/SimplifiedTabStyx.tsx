@@ -81,6 +81,7 @@ import { request as xverseRequest } from "sats-connect";
 import { getTokenAssetName } from "../utils/TokenContracts";
 import { request } from "@stacks/connect";
 import useSdkPoolStatus from "../../hooks/useSdkPoolStatus";
+import { getCurrentNetworkConfig } from "../../stxConnect/network";
 
 const pulseAnimation = keyframes`
   0% { opacity: 0.7; }
@@ -239,15 +240,14 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
   // Add this function to fetch fee estimates
   const fetchMempoolFeeEstimates = async () => {
     try {
-      const response = await fetch(
-        "https://mempool.space/api/v1/fees/recommended"
-      );
+      const config = getCurrentNetworkConfig();
+      const response = await fetch(`${config.mempoolUrl}/v1/fees/recommended`);
       const data = await response.json();
 
       // Map to the correct fee estimate fields
-      const lowRate = data.hourFee;
-      const mediumRate = data.halfHourFee;
-      const highRate = data.fastestFee;
+      const lowRate = data.hourFee || 1;
+      const mediumRate = data.halfHourFee || 3;
+      const highRate = data.fastestFee || 5;
 
       return {
         low: {
@@ -267,10 +267,10 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
         },
       };
     } catch (error) {
-      console.error("Error fetching fee estimates from mempool.space:", error);
+      console.error("Error fetching fee estimates:", error);
       // Fallback to default values
       return {
-        low: { rate: 3, fee: 444, time: "30 min" },
+        low: { rate: 1, fee: 148, time: "30 min" },
         medium: { rate: 3, fee: 444, time: "~20 min" },
         high: { rate: 5, fee: 740, time: "~10 min" },
       };
@@ -1181,10 +1181,13 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
           // Universal wallet detection - check what's actually available
           if (window.LeatherProvider) {
             console.log("Using Leather wallet flow");
+
+            const config = getCurrentNetworkConfig();
+
             // Leather wallet flow
             const requestParams = {
               hex: finalTxPsbtHex,
-              network: "mainnet", // "RegtestAiBtc",
+              network: config.stacksNetwork,
               broadcast: false,
               allowedSighash: [btc.SigHash.ALL],
               allowUnknownOutputs: true,
@@ -1221,16 +1224,13 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
             const finalTxHex = hex.encode(signedTx.extract());
 
             // Manually broadcast the transaction
-            const broadcastResponse = await fetch(
-              "https://mempool.space/api/tx", // "https://mempool.bitcoin.regtest.hiro.so/api/v1/tx",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "text/plain",
-                },
-                body: finalTxHex,
-              }
-            );
+            const broadcastResponse = await fetch(`${config.mempoolUrl}/tx`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "text/plain",
+              },
+              body: finalTxHex,
+            });
 
             if (!broadcastResponse.ok) {
               const errorText = await broadcastResponse.text();
