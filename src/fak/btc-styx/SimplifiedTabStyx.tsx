@@ -70,8 +70,7 @@ import {
 // import { usePriceBTC } from "../hooks/usePriceBTC";
 import { ExternalLinkIcon } from "@chakra-ui/icons";
 import { keyframes } from "@emotion/react";
-import { styxSDK } from "@faktoryfun/styx-sdk";
-// import { testnetStyxSDK } from "@faktoryfun/styx-sdk";
+import { StyxSDK } from "@faktoryfun/styx-sdk";
 
 import { Deposit, TransactionPriority } from "@faktoryfun/styx-sdk";
 import { MIN_DEPOSIT_SATS, MAX_DEPOSIT_SATS } from "@faktoryfun/styx-sdk";
@@ -81,7 +80,7 @@ import { request as xverseRequest } from "sats-connect";
 import { getTokenAssetName } from "../utils/TokenContracts";
 import { request } from "@stacks/connect";
 import useSdkPoolStatus from "../../hooks/useSdkPoolStatus";
-import { getCurrentNetworkConfig } from "../../stxConnect/network";
+import { getCurrentNetworkConfig, NETWORK } from "../../stxConnect/network";
 
 const pulseAnimation = keyframes`
   0% { opacity: 0.7; }
@@ -104,6 +103,16 @@ interface XverseSignPsbtResponse {
 interface SimplifiedTradStyxProps {
   token: Token;
 }
+
+const createStyxSDK = () => {
+  const sdkNetwork = NETWORK; // "mainnet" | "testnet" | "regtest"
+
+  return new StyxSDK(
+    undefined, // Let SDK choose the API URL based on network
+    undefined, // Use SDK's default API key
+    sdkNetwork // SDK will use this to pick the right apiUrl from NETWORK_CONFIGS
+  );
+};
 
 const BYPASS_VERIFICATION_TOKENS = ["BEAST2", "beast2"];
 
@@ -189,7 +198,8 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
   const [btcTxId, setBtcTxId] = useState<string>("");
   const [currentDepositId, setCurrentDepositId] = useState<string | null>(null);
   const [buyWithSbtc, setBuyWithSbtc] = useState<boolean>(false);
-  // const styxSDK = testnetStyxSDK; // this on testnet
+  const styxSDK = createStyxSDK();
+
   const { data: poolStatus, isLoading: isPoolStatusLoading } =
     useSdkPoolStatus("aibtc");
 
