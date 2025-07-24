@@ -27,7 +27,7 @@ export const NETWORK_CONFIG = {
   regtest: {
     btcPrefixes: ["bcrt1", "2", "m", "n"],
     blockstreamUrl: "https://mempool.bitcoin.regtest.hiro.so/api/v1",
-    mempoolUrl: "https://mempool.bitcoin.regtest.hiro.so/api/v1",
+    mempoolUrl: "https://mempool.bitcoin.regtest.hiro.so/api",
     stacksNetwork: "regtest",
   },
 };

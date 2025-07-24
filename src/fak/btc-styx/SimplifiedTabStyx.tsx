@@ -552,15 +552,15 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
 
     const sbtcBalanceInSats = Math.floor((sbtcBalance ?? 0) * Math.pow(10, 8));
 
-    if (ustx > sbtcBalanceInSats) {
-      toast({
-        title: "Insufficient sBTC balance",
-        description: `You need more sBTC to complete this purchase.`,
-        status: "error",
-        duration: 5000,
-      });
-      return;
-    }
+    // if (ustx > sbtcBalanceInSats) {
+    //   toast({
+    //     title: "Insufficient sBTC balance",
+    //     description: `You need more sBTC to complete this purchase.`,
+    //     status: "error",
+    //     duration: 5000,
+    //   });
+    //   return;
+    // }
 
     // Parse buyQuote result using SimplifiedTradingTabs logic
     const clarityValue = hexToCV(buyQuote.result);
@@ -751,19 +751,19 @@ const SimplifiedTradStyx: React.FC<SimplifiedTradStyxProps> = ({
     const networkFeeInBTC = 0.000006; // 600 sats as network fee
     const totalRequiredBTC = parseFloat(totalAmount) + networkFeeInBTC;
 
-    if ((btcBalance || 0) < totalRequiredBTC) {
-      const shortfallBTC = totalRequiredBTC - (btcBalance || 0);
-      toast({
-        title: "Insufficient funds",
-        description: `You need ${shortfallBTC.toFixed(
-          8
-        )} BTC more to complete this transaction.`,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
+    // if ((btcBalance || 0) < totalRequiredBTC) {
+    //   const shortfallBTC = totalRequiredBTC - (btcBalance || 0);
+    //   toast({
+    //     title: "Insufficient funds",
+    //     description: `You need ${shortfallBTC.toFixed(
+    //       8
+    //     )} BTC more to complete this transaction.`,
+    //     status: "error",
+    //     duration: 5000,
+    //     isClosable: true,
+    //   });
+    //   return;
+    // }
 
     // Only now that all validations have passed, start loading state and progress animation
     setIsConfirmLoading(true);
